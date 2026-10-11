@@ -1,0 +1,13 @@
+# 构建输出
+bin/
+obj/
+
+# IDE 与本地工具
+.vs/
+.idea/
+*.user
+
+# 本地临时目录（截图、调试产物等）
+.screenshots/
+
+# 注意：releases/ 目录下的 NPS.AudioVisualizer.dll 是有意提交的分发产物，不要全局忽略 *.dll
