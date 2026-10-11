@@ -127,3 +127,11 @@ dotnet build NPS.AudioVisualizer.csproj -c Release
 ```
 
 构建产物预期位于插件项目的 `bin\Release\net10.0-windows10.0.19041.0\NPS.AudioVisualizer.dll`。生成产物后，先核对它与目标宿主 API/运行时版本匹配，再通过远程平台提供的方式交付。
+
+Linux/macOS 环境构建需追加 Windows RID 与目标框架开关（宿主引用 WindowsDesktop 框架，缺 `-r win-x64` 会报 NETSDK1082）：
+
+```bash
+dotnet build NPS.AudioVisualizer.csproj -c Release -r win-x64 -p:EnableWindowsTargeting=true
+```
+
+此时产物位于 `bin/Release/net10.0-windows10.0.19041.0/win-x64/NPS.AudioVisualizer.dll`。`releases/` 目录中的分发 DLL 应使用与当前源码一致的最新构建产物。
