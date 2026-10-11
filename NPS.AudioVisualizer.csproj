@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 必须与主程序完全一致，否则宿主加载不了 -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <AssemblyName>NPS.AudioVisualizer</AssemblyName>
+    <Version>1.3.0</Version>
+    <Authors>CodeBuddy</Authors>
+    <RootNamespace>NPS.AudioVisualizer</RootNamespace>
+    <!-- 允许在非 Windows 系统上编译 Windows 目标框架（Windows 下无影响） -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 引用主程序工程，拿到 INotchPlugin / IPluginHost / IWidget / WidgetFrame 等接口定义。
+         Private=false：宿主 dll 已在用户机器上，不随插件拷贝。
+         布局约定：本插件目录与克隆下来的 NotchPeninsula 仓库目录平级
+         （⚠️ 别放进仓库目录里 —— 宿主工程默认通配 **\*.cs，会把插件源码也编进去）。 -->
+    <ProjectReference Include="..\NotchPeninsula\NotchPeninsula.csproj" Private="false" />
+    <!-- SkiaSharp 仅作编译引用；运行时由宿主进程提供，不随插件分发 -->
+    <PackageReference Include="SkiaSharp" Version="2.88.8" ExcludeAssets="runtime" />
+    <!-- NAudio 仅作编译引用（双声道捕获用 WasapiLoopbackCapture）；
+         版本与宿主一致，运行时由宿主进程提供，不随插件分发 -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" ExcludeAssets="runtime" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- 编译后自动把 dll 复制到主程序输出目录的 plugins 文件夹，省得手动搬 -->
+  <Target Name="InstallToHostPlugins" AfterTargets="Build">
+    <PropertyGroup>
+      <HostPluginDir>$(MSBuildThisFileDirectory)..\NotchPeninsula\bin\$(Configuration)\$(TargetFramework)\plugins</HostPluginDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(HostPluginDir)" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
+          DestinationFolder="$(HostPluginDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
