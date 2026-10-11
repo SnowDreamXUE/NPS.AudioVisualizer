@@ -18,9 +18,9 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 
 ## 安装（无需本机编译）
 
-安装需要一份与目标 NotchPeninsula 版本兼容的预编译 `NPS.AudioVisualizer.dll`。本仓库提供源代码，不包含 DLL 或可下载的构建产物。
+安装需要一份与目标 NotchPeninsula 版本兼容的预编译 `NPS.AudioVisualizer.dll`，可直接从本仓库 `releases/` 目录获取；仓库同时提供全部源代码。
 
-1. 从维护者提供的发布包或远程构建环境取得兼容的 DLL。
+1. 从本仓库 `releases/` 目录取得 `NPS.AudioVisualizer.dll`，或使用提供构建能力的远程开发平台自行生成。
 2. 将 DLL 放入 NotchPeninsula 主程序 exe 同级的 `plugins` 文件夹（例如 `C:\NotchPeninsula\plugins\`），或在宿主的 **设置 → 我的插件** 中导入 DLL。
 3. 按宿主提示重启或重新加载插件。
 4. 在 **设置 → 显示设置 → 显示内容** 中启用并调整组件显示。
@@ -31,18 +31,22 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 
 | 文件 | 职责 |
 | --- | --- |
-| `AudioVisualizerPlugin.cs` | 插件入口、共享状态、设置读取与迁移、立体声捕获生命周期 |
-| `VisualizerWidget.cs` | 灵动岛上的迷你频谱组件及其宽度测量 |
-| `VisualizerDetailPage.cs` | 详情页频谱绘制和设置交互 |
-| `VisualizerSettingsPage.cs` | 插件设置中心的选项和实时预览 |
-| `StereoCapture.cs` | WASAPI Loopback 左右声道捕获、Goertzel 分析和双缓冲 |
-| `PluginFont.cs` | 从宿主取得当前字体 |
+| `src/AudioVisualizerPlugin.cs` | 插件入口、设置读取与迁移、立体声捕获生命周期 |
+| `src/Core/VisualizerState.cs` | 共享状态与频谱平滑、峰值保持 |
+| `src/Rendering/BarMetrics.cs` | 柱形粗细档位的尺寸表 |
+| `src/Rendering/SpectrumPaint.cs` | 频段配色与柱形/辉光绘制 |
+| `src/Rendering/PluginFont.cs` | 从宿主取得当前字体 |
+| `src/Audio/StereoCapture.cs` | WASAPI Loopback 左右声道捕获、Goertzel 分析和双缓冲 |
+| `src/UI/VisualizerWidget.cs` | 灵动岛上的迷你频谱组件及其宽度测量 |
+| `src/UI/VisualizerDetailPage.cs` | 详情页频谱绘制和设置交互 |
+| `src/UI/VisualizerSettingsPage.cs` | 插件设置中心的选项和实时预览 |
 | `NPS.AudioVisualizer.csproj` | 目标框架、宿主项目引用和编译依赖 |
+| `releases/NPS.AudioVisualizer.dll` | 与当前版本对应的预编译产物 |
 | `AI_DEVELOPMENT.md` | 供 AI 开发工具接手时阅读的项目约定和远程构建说明 |
 
 ## 开发环境说明
 
-项目当前面向 `net10.0-windows10.0.19041.0`。项目文件通过相对路径引用同级的 `NotchPeninsula` 宿主源码工程，因此单独检出本仓库并不能解析完整的编译引用。当前仓库没有包含 CI 构建工作流或 DLL 产物；远程构建所需的目录布局、依赖和注意事项见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
+项目当前面向 `net10.0-windows10.0.19041.0`。项目文件位于仓库根目录，通过相对路径引用同级的 `NotchPeninsula` 宿主源码工程，因此单独检出本仓库并不能解析完整的编译引用。当前仓库没有包含 CI 构建工作流，预编译产物位于 `releases/` 目录；远程构建所需的目录布局、依赖和注意事项见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
 
 本插件当前适配的宿主为 **NotchPeninsula 正式版 2.0.0**（GitHub release [NotchPeninsula 2.0](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.0)，对应 tag `NPS-v2.0`）。更新宿主兼容性前，请以该 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
 
@@ -56,3 +60,7 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 - **1.2.0**：增加柱宽档位，调整灵敏度和配色选项。
 - **1.1.0**：增加双声道显示。
 - **1.0.0**：首个版本。
+
+## 许可
+
+本项目基于 [MIT License](LICENSE) 开源。

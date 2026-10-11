@@ -6,7 +6,7 @@
 
 - 用户希望在其他平台继续开发，**不要在用户本机执行 `dotnet build`、`dotnet test` 或其他本地编译流程**。
 - 代码改动应以源码审阅为主。若任务需要编译产物，只能使用用户选定的远程开发平台或托管构建环境；说明构建是否成功以及产物位置。
-- 仓库当前没有 CI 构建工作流、测试工程或预编译 DLL。不要假设代码已被构建或测试通过。
+- 仓库当前没有 CI 构建工作流或测试工程；`releases/` 目录中的预编译 DLL 对应最近一次远程构建，不代表最新源码改动已通过构建或测试。
 - 改动宿主接口前，先查阅宿主对应版本的官方 API 文档和源码。不要仅凭其他 NotchPeninsula 版本的接口猜测。
 - 尽量保持插件仍以单个 `NPS.AudioVisualizer.dll` 分发；不要把宿主运行时已提供的依赖复制进插件目录。
 
@@ -27,29 +27,53 @@
 
 ## 当前实现结构
 
-### `AudioVisualizerPlugin.cs`
+仓库布局如下。`.csproj` 保留在仓库根目录以维持 `..\NotchPeninsula` 相对引用；源码按职责放在 `src/` 子目录，但所有文件统一使用 `NPS.AudioVisualizer` 命名空间（不随文件夹拆分），跨文件引用无需 using：
+
+```text
+NPS.AudioVisualizer/
+├── NPS.AudioVisualizer.csproj
+├── src/
+│   ├── AudioVisualizerPlugin.cs
+│   ├── Core/VisualizerState.cs
+│   ├── Rendering/{BarMetrics, SpectrumPaint, PluginFont}.cs
+│   ├── Audio/StereoCapture.cs
+│   └── UI/{VisualizerWidget, VisualizerDetailPage, VisualizerSettingsPage}.cs
+└── releases/NPS.AudioVisualizer.dll   # 预编译分发产物
+```
+
+### `src/AudioVisualizerPlugin.cs`
 
 实现 `INotchPlugin` 和 `IDisposable`。`Initialize` 读取持久化设置、订阅 `SettingsChanged`、注册岛组件及插件设置页，并通过 `ScheduleRefresh` 周期性启停立体声捕获。`Dispose` 退订事件、释放计划任务和捕获资源。
 
-`VisualizerState` 保存 UI 共用状态、增益档位、平滑后的频段值和峰值。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
+### `src/Core/VisualizerState.cs`
 
-### `VisualizerWidget.cs`
+保存 UI 共用状态、增益档位、平滑后的频段值和峰值。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
+
+### `src/Rendering/BarMetrics.cs`
+
+柱形粗细档位的尺寸表：按档位返回（柱宽, 柱间距），组件与详情页各一套尺寸。
+
+### `src/Rendering/SpectrumPaint.cs`
+
+频段配色（主题 / 彩虹 / 霓虹）与圆角柱绘制（霓虹配色带辉光），组件、详情页与设置中心预览共用。
+
+### `src/UI/VisualizerWidget.cs`
 
 实现 `IWidget`，负责灵动岛上的迷你频谱。组件宽度由柱宽档位决定；粗细变化后需要调用 `IPluginHost.InvalidateWidgetLayout()`，让宿主重新测量宽度。左键操作打开或关闭详情页。
 
-### `VisualizerDetailPage.cs`
+### `src/UI/VisualizerDetailPage.cs`
 
 实现 `IDetailPage`，绘制固定设计尺寸为 360×168 的详情页，并提供样式、粗细、配色和灵敏度切换按钮。设置变化写入宿主设置接口。
 
-### `VisualizerSettingsPage.cs`
+### `src/UI/VisualizerSettingsPage.cs`
 
 实现 `ISettingsPage` 和 `ICustomSettingsPage`。设置中心控件与详情页共用同一组设置键；下方自绘预览读取 `VisualizerState` 中的平滑值。此实现不依赖设置中心单独的 DLL。
 
-### `StereoCapture.cs`
+### `src/Audio/StereoCapture.cs`
 
 双声道模式的额外 WASAPI Loopback 捕获器。左右声道分别进行 Goertzel 频段分析，通过前后缓冲交换向绘制逻辑提供数据。仅双声道模式需要捕获；启动失败或数据中断时会重试，捕获不可用时绘制逻辑使用宿主单声道数据镜像回退。
 
-### `PluginFont.cs`
+### `src/Rendering/PluginFont.cs`
 
 从宿主 `FontConfig` 取得字体。宿主字体属于共享资源：每次绘制按需取得，不缓存，也不要对其调用 `Dispose`。
 
@@ -103,3 +127,11 @@ dotnet build NPS.AudioVisualizer.csproj -c Release
 ```
 
 构建产物预期位于插件项目的 `bin\Release\net10.0-windows10.0.19041.0\NPS.AudioVisualizer.dll`。生成产物后，先核对它与目标宿主 API/运行时版本匹配，再通过远程平台提供的方式交付。
+
+Linux/macOS 环境构建需追加 Windows RID 与目标框架开关（宿主引用 WindowsDesktop 框架，缺 `-r win-x64` 会报 NETSDK1082）：
+
+```bash
+dotnet build NPS.AudioVisualizer.csproj -c Release -r win-x64 -p:EnableWindowsTargeting=true
+```
+
+此时产物位于 `bin/Release/net10.0-windows10.0.19041.0/win-x64/NPS.AudioVisualizer.dll`。`releases/` 目录中的分发 DLL 应使用与当前源码一致的最新构建产物。
