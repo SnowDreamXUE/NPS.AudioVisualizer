@@ -1,6 +1,6 @@
 # NPS.AudioVisualizer
 
-NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前版本为 **1.3.0**，插件 ID 为 `com.nps.audiovisualizer`。
+NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前版本为 **1.3.1**，插件 ID 为 `com.nps.audiovisualizer`。
 
 ## 功能
 
@@ -44,13 +44,14 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 
 项目当前面向 `net10.0-windows10.0.19041.0`。项目文件通过相对路径引用同级的 `NotchPeninsula` 宿主源码工程，因此单独检出本仓库并不能解析完整的编译引用。当前仓库没有包含 CI 构建工作流或 DLL 产物；远程构建所需的目录布局、依赖和注意事项见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
 
-仓库原有说明记录的宿主目标版本为 **NPS v1.9.5**。更新宿主兼容性前，请以宿主对应版本的插件 API 为准：
+本插件当前适配的宿主为 **NotchPeninsula 正式版 2.0.0**（GitHub release [NotchPeninsula 2.0](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.0)，对应 tag `NPS-v2.0`）。更新宿主兼容性前，请以该 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
 
 - [NotchPeninsula 宿主仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
-- [插件开发 API 文档](https://github.com/GEORGEWWWU/NotchPeninsula/blob/main/NPS_PluginsAPI.md)
+- [NPS-v2.0 的插件开发 API 文档](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.0/NPS_PluginsAPI.md)
 
 ## 版本记录
 
+- **1.3.1**：适配 NotchPeninsula 正式版 2.0.0（tag `NPS-v2.0`）；作者信息更新为 SnowDream。2.0.0 插件 API 无破坏性变化（仅 `ReminderData` 新增可选 `Source` 字段，本插件未使用，行为不变），目标框架与宿主运行时依赖版本同 1.3.0。
 - **1.3.0**：接入插件设置中心和实时预览；灵敏度设置迁移为索引存储，并保留旧值迁移。
 - **1.2.0**：增加柱宽档位，调整灵敏度和配色选项。
 - **1.1.0**：增加双声道显示。

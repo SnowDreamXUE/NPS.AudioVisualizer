@@ -13,16 +13,16 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前插件版本：`1.3.0`
+- 当前插件版本：`1.3.1`
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`
-- 仓库原有 README 记录的目标宿主版本为 NPS v1.9.5。当前仓库没有包含宿主源码，变更兼容性前应核对目标版本的实际接口。
+- 目标宿主版本：**NotchPeninsula 正式版 2.0.0**（GitHub tag `NPS-v2.0`，release「NotchPeninsula 2.0」）。当前仓库没有包含宿主源码，变更兼容性前应核对目标 tag 的实际接口。
 
 官方参考：
 
 - [NotchPeninsula 仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
-- [NPS_PluginsAPI.md 插件开发说明](https://github.com/GEORGEWWWU/NotchPeninsula/blob/main/NPS_PluginsAPI.md)
+- [NPS-v2.0 tag 的 NPS_PluginsAPI.md 插件开发说明](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.0/NPS_PluginsAPI.md)
 - 若目标版本有对应 tag，应优先使用该 tag 的 API 文档和宿主源码，不要默认 `main` 与已发布版本完全一致。
 
 ## 当前实现结构
@@ -86,7 +86,7 @@
 
 ## 项目引用与依赖
 
-`NPS.AudioVisualizer.csproj` 通过相对路径引用 `..\NotchPeninsula\NotchPeninsula.csproj`，并设置 `Private="false"`。SkiaSharp 版本为 2.88.8，NAudio.Core 和 NAudio.Wasapi 版本为 2.2.1，项目配置将它们作为编译引用，运行时依赖由宿主提供。
+`NPS.AudioVisualizer.csproj` 通过相对路径引用 `..\NotchPeninsula\NotchPeninsula.csproj`，并设置 `Private="false"`。SkiaSharp 版本为 2.88.8，NAudio.Core 和 NAudio.Wasapi 版本为 2.2.1，项目配置将它们作为编译引用，运行时依赖由宿主提供。以上框架与包版本已核对与宿主 2.0.0（tag `NPS-v2.0`）一致：宿主 `NotchPeninsula.csproj` 同为 `net10.0-windows10.0.19041.0`，运行时加载相同版本的 SkiaSharp 与 NAudio 程序集，插件不随带这些依赖。
 
 如果远程环境需要构建，两个仓库必须按相对路径并列放置，不能把插件源码放进宿主仓库目录（宿主项目的默认源文件通配可能把插件代码一并编译进宿主）：
 
