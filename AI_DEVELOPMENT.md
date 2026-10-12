@@ -13,7 +13,7 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前插件版本：`1.3.1`
+- 当前插件版本：`1.3.2`
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`

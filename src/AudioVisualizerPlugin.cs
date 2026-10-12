@@ -18,7 +18,7 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
     // 反域名风格唯一 Id；DisplayName / Version / Author 显示在「我的插件」列表里
     public string Id => "com.nps.audiovisualizer";
     public string DisplayName => "音频可视化";
-    public string Version => "1.3.1";
+    public string Version => "1.3.2";
     public string Author => "SnowDream";
 
     public void Initialize(IPluginHost host)
@@ -41,7 +41,7 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
             Title = "音频可视化已加载",
             Body = "右键岛上的频谱组件，可调整样式 / 粗细 / 配色 / 灵敏度",
         });
-        try { NotchPeninsula.Logger.Info("[AudioVisualizer] loaded v1.3.1"); } catch { }
+        try { NotchPeninsula.Logger.Info("[AudioVisualizer] loaded v1.3.2"); } catch { }
     }
 
     /// <summary>双声道捕获的按需启停：样式切到双声道才开捕获，切走即停。</summary>
