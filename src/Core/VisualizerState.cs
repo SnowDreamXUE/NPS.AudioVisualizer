@@ -33,6 +33,17 @@ internal sealed class VisualizerState
     private readonly int[] _peakHold = new int[Bands];
     private long _lastFeedTick;
 
+    // 陈旧数据兜底：目标值连续 StaleForceMs 逐位完全不变且非全零 → 上游大概率冻结（捕获死亡残留 / 宿主 Bars 陈旧），
+    // 强制清零让频谱平滑落回基线 —— 活音频经 AGC/浮点运算后逐位不变几乎不可能，正常播放不会误触发。
+    private readonly float[] _prevM = new float[Bands];
+    private readonly float[] _prevL = new float[Bands];
+    private readonly float[] _prevR = new float[Bands];
+    private readonly float[] _targetM = new float[Bands];
+    private readonly float[] _targetL = new float[Bands];
+    private readonly float[] _targetR = new float[Bands];
+    private long _staleSince;
+    private const long StaleForceMs = 600;
+
     private const float Attack = 0.55f;   // 上升快：跟得住节拍
     private const float Release = 0.10f;  // 下落慢：尾巴自然
     private const int HoldFrames = 24;    // 峰值驻留约 0.4s（60FPS）
@@ -49,15 +60,33 @@ internal sealed class VisualizerState
         _lastFeedTick = now;
 
         float gain = Gain;
+        bool changed = false, anyLive = false;
         for (int i = 0; i < Bands; i++)
         {
             float m = mono is not null && i < mono.Length ? mono[i] : 0f;
             float l = left is not null && i < left.Length ? left[i] : m;
             float r = right is not null && i < right.Length ? right[i] : m;
+            m *= gain; l *= gain; r *= gain;
 
-            Smooth[i] = Step(Smooth[i], m * gain);
-            SmoothL[i] = Step(SmoothL[i], l * gain);
-            SmoothR[i] = Step(SmoothR[i], r * gain);
+            if (m != _prevM[i] || l != _prevL[i] || r != _prevR[i]) changed = true;
+            if (m > 0.02f || l > 0.02f || r > 0.02f) anyLive = true;
+            _prevM[i] = m; _prevL[i] = l; _prevR[i] = r;
+            _targetM[i] = m; _targetL[i] = l; _targetR[i] = r;
+        }
+
+        // 冻结兜底：所有目标值持续逐位不变且非全零 → 视为上游卡死，强制清零（频谱落底，绝不冻结在半空）
+        if (changed || !anyLive) _staleSince = 0;
+        else if (_staleSince == 0) _staleSince = now;
+        if (_staleSince != 0 && now - _staleSince >= StaleForceMs)
+        {
+            for (int i = 0; i < Bands; i++) { _targetM[i] = 0f; _targetL[i] = 0f; _targetR[i] = 0f; }
+        }
+
+        for (int i = 0; i < Bands; i++)
+        {
+            Smooth[i] = Step(Smooth[i], _targetM[i]);
+            SmoothL[i] = Step(SmoothL[i], _targetL[i]);
+            SmoothR[i] = Step(SmoothR[i], _targetR[i]);
 
             // 峰值驻留（柱形样式用，基于单声道）
             float s = Smooth[i];
