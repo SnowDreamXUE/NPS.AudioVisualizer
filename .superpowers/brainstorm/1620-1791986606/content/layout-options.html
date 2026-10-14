@@ -1,0 +1,126 @@
+<style>
+:root {
+  --bg: #0b0f14;
+  --panel: #121922;
+  --line: #263342;
+  --muted: #91a0b3;
+  --text: #f1f5f9;
+  --cyan: #5eead4;
+  --blue: #60a5fa;
+  --amber: #fbbf24;
+  --rose: #fb7185;
+}
+* { box-sizing: border-box; }
+body { background: radial-gradient(circle at 50% -10%, #1b3041 0, var(--bg) 48%); }
+.comparison { max-width: 1180px; margin: 0 auto; }
+.kicker { color: var(--cyan); letter-spacing: .16em; text-transform: uppercase; font-size: 11px; font-weight: 700; margin-bottom: 10px; }
+.intro { max-width: 780px; margin-bottom: 24px; }
+.intro h2 { margin-bottom: 8px; }
+.intro p { color: var(--muted); line-height: 1.55; }
+.options-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.choice { background: linear-gradient(180deg, rgba(25,35,47,.96), rgba(15,22,30,.96)); border: 1px solid var(--line); border-radius: 18px; padding: 16px; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.choice:hover { transform: translateY(-2px); border-color: #4b657d; }
+.choice.selected { border-color: var(--cyan); box-shadow: 0 0 0 1px rgba(94,234,212,.25), 0 16px 35px rgba(0,0,0,.24); }
+.choice-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.choice-code { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: #203040; color: var(--cyan); font-weight: 800; flex: 0 0 auto; }
+.choice h3 { margin: 1px 0 5px; color: var(--text); font-size: 16px; }
+.choice-head p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.island { position: relative; height: 172px; border-radius: 12px; background: #080b10; border: 1px solid #202b37; overflow: hidden; margin-bottom: 14px; }
+.notch { position: absolute; width: 122px; height: 25px; top: 10px; left: 50%; transform: translateX(-50%); border-radius: 0 0 15px 15px; background: #030508; border: 1px solid #1f2935; z-index: 3; }
+.module { position: absolute; top: 63px; height: 44px; border-radius: 13px; border: 1px solid; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 9px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.module.media { left: 50%; transform: translateX(-50%); width: 132px; color: #cbd5e1; border-color: #465364; background: #1b2430; }
+.module.other { top: 119px; width: 58px; color: #fcd34d; border-color: #795d1c; background: #302715; }
+.module.other.left { left: 15px; }
+.module.other.right { right: 15px; }
+.bars { display: flex; align-items: center; gap: 2px; height: 21px; }
+.bar { width: 3px; border-radius: 3px; background: currentColor; }
+.bar:nth-child(1) { height: 8px; opacity: .7; }
+.bar:nth-child(2) { height: 15px; }
+.bar:nth-child(3) { height: 21px; }
+.bar:nth-child(4) { height: 12px; opacity: .85; }
+.bar:nth-child(5) { height: 17px; }
+.spectrum { position: absolute; top: 72px; height: 27px; display: flex; align-items: center; gap: 2px; }
+.spectrum.left { left: 12px; color: var(--blue); }
+.spectrum.right { right: 12px; color: var(--rose); flex-direction: row-reverse; }
+.spectrum .bar:nth-child(1) { height: 9px; }
+.spectrum .bar:nth-child(2) { height: 19px; }
+.spectrum .bar:nth-child(3) { height: 26px; }
+.spectrum .bar:nth-child(4) { height: 14px; }
+.spectrum .bar:nth-child(5) { height: 22px; }
+.arrow { position: absolute; top: 45px; color: var(--amber); font-size: 11px; letter-spacing: .03em; }
+.arrow.left { left: 12px; }
+.arrow.right { right: 12px; }
+.order-row { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; gap: 5px; justify-content: center; }
+.order-chip { padding: 4px 7px; border: 1px solid #354555; background: #17212b; border-radius: 6px; color: #aab8c8; font-size: 9px; }
+.order-chip.active { color: var(--cyan); border-color: #27665f; }
+.order-chip.warn { color: var(--amber); border-color: #725718; }
+.order-chip.good { color: var(--cyan); border-color: #27665f; }
+.meta { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+.tag { border: 1px solid #334354; color: #b7c4d3; border-radius: 999px; padding: 4px 8px; font-size: 10px; }
+.tag.good { color: var(--cyan); border-color: #27665f; }
+.tag.bad { color: #fda4af; border-color: #713746; }
+.tag.caution { color: var(--amber); border-color: #725718; }
+.choice ul { margin: 0; padding-left: 17px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.choice li + li { margin-top: 4px; }
+.decision { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-top: 18px; }
+.summary, .flow { border: 1px solid var(--line); border-radius: 16px; background: rgba(15,22,30,.84); padding: 16px; }
+.summary h3, .flow h3 { margin: 0 0 10px; font-size: 14px; }
+.summary p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 12px; }
+.flow-line { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+.flow-node { padding: 7px 9px; border: 1px solid #354555; border-radius: 8px; color: #dbeafe; background: #16212c; }
+.flow-node.edge { color: var(--cyan); border-color: #27665f; }
+.flow-arrow { color: var(--amber); }
+@media (max-width: 900px) { .options-grid { grid-template-columns: 1fr; } .decision { grid-template-columns: 1fr; } }
+</style>
+<div class="comparison">
+  <div class="intro">
+    <div class="kicker">Layout decision</div>
+    <h2>左右声道频谱：三种落地路径</h2>
+    <p>目标是切换到新样式后，左声道固定在岛左侧、右声道固定在岛右侧，不再受宿主插件排序影响。点击卡片可标记你倾向的方案。</p>
+  </div>
+  <div class="options-grid" data-multiselect>
+    <div class="choice" data-choice="a" onclick="toggleSelect(this)">
+      <div class="choice-head"><div class="choice-code">A</div><div><h3>拆成两个普通组件</h3><p>继续走 IWidget 与宿主排序</p></div></div>
+      <div class="island">
+        <div class="notch"></div>
+        <div class="module media">宿主分配区域</div>
+        <div class="spectrum left"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="spectrum right"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="arrow left">← 左声道</div><div class="arrow right">右声道 →</div>
+        <div class="order-row"><span class="order-chip active">插件频谱 L</span><span class="order-chip active">插件频谱 R</span><span class="order-chip warn">可能被挪动</span></div>
+      </div>
+      <div class="meta"><span class="tag good">改动最少</span><span class="tag bad">无法保证两端</span></div>
+      <ul><li>两个组件仍会作为插件内容参与布局。</li><li>插件顺序变化时，左右频谱可能一起移动或被其他内容插入。</li></ul>
+    </div>
+    <div class="choice" data-choice="b" onclick="toggleSelect(this)">
+      <div class="choice-head"><div class="choice-code">B</div><div><h3>使用辅助组件层</h3><p>复用 ISecondaryWidget，绕开普通排序</p></div></div>
+      <div class="island">
+        <div class="notch"></div>
+        <div class="module media">宿主普通内容</div>
+        <div class="spectrum left"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="spectrum right"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="arrow left">← 固定左端</div><div class="arrow right">固定右端 →</div>
+        <div class="order-row"><span class="order-chip good">普通排序</span><span class="order-chip good">辅助层</span><span class="order-chip good">独立位置</span></div>
+      </div>
+      <div class="meta"><span class="tag good">符合需求</span><span class="tag caution">需核实宿主坐标</span></div>
+      <ul><li>插件注册左右两个辅助绘制单元，不占普通排序位置。</li><li>若宿主把辅助组件绘制到固定边缘，只需插件侧实现。</li></ul>
+    </div>
+    <div class="choice" data-choice="c" onclick="toggleSelect(this)">
+      <div class="choice-head"><div class="choice-code">C</div><div><h3>宿主增加边缘插槽</h3><p>为插件提供明确的左右端覆盖层 API</p></div></div>
+      <div class="island">
+        <div class="notch"></div>
+        <div class="module media">宿主普通内容</div>
+        <div class="spectrum left"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="spectrum right"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+        <div class="arrow left">← EdgeLeft</div><div class="arrow right">EdgeRight →</div>
+        <div class="order-row"><span class="order-chip good">排序无关</span><span class="order-chip good">坐标明确</span><span class="order-chip good">冲突可控</span></div>
+      </div>
+      <div class="meta"><span class="tag good">最稳妥</span><span class="tag caution">需要宿主改动</span></div>
+      <ul><li>宿主明确提供左右边缘绘制回调或插槽，插件只提交声道数据。</li><li>可统一处理岛宽变化、媒体占位、遮挡和点击区域。</li></ul>
+    </div>
+  </div>
+  <div class="decision">
+    <div class="summary"><h3>当前建议</h3><p>先核对宿主 ISecondaryWidget 的实际绘制位置。如果它已经绕过 ContentOrder 且能获得边缘矩形，优先采用 B；如果只能注册但不能控制矩形，则采用 C，补充最小的宿主边缘层能力。A 不符合“忽略宿主排序”的核心要求。</p></div>
+    <div class="flow"><h3>验证顺序</h3><div class="flow-line"><span class="flow-node">宿主源码核对</span><span class="flow-arrow">→</span><span class="flow-node">B 可行？</span><span class="flow-arrow">→</span><span class="flow-node edge">插件实现</span></div><div class="flow-line" style="margin-top:9px"><span class="flow-node">B 不可行</span><span class="flow-arrow">→</span><span class="flow-node edge">C：宿主边缘 API</span></div></div>
+  </div>
+</div>
