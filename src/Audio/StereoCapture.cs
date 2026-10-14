@@ -19,6 +19,7 @@ internal sealed class StereoCapture : IDisposable
     public const int Bands = 5;
     private const int TargetSampleRate = 8000;
     private const long RestartAttemptTicks = (long)(1.5 * TimeSpan.TicksPerSecond); // 失败重试限速（成功不计时）
+    private const float ActivityThreshold = 0.0015f; // 采样峰值阈值 ≈ -56dBFS：数字静音恒为 0，高于此即真实声音（自动隐藏监测用）
 
     private float[] _frontL = new float[Bands];
     private float[] _frontR = new float[Bands];
@@ -77,6 +78,7 @@ internal sealed class StereoCapture : IDisposable
                 _capturedDeviceId = deviceId;
                 _failCount = 0;
                 Volatile.Write(ref _lastDataTicks, DateTime.UtcNow.Ticks);
+                Volatile.Write(ref _lastAudioTicks, 0L); // 新会话不继承旧的活动时间戳
                 try { NotchPeninsula.Logger.Info("[AudioVisualizer] 立体声捕获已启动"); } catch { }
             }
             catch (Exception ex)
@@ -206,10 +208,16 @@ internal sealed class StereoCapture : IDisposable
         int step = _channels * _decimation;
         int limit = _channels >= 2 ? floatCount - 1 : floatCount;
 
+        float peak = 0f;
         for (int i = 0; i < limit; i += step)
         {
             float l = buffer.FloatBuffer[i];
             float r = _channels >= 2 ? buffer.FloatBuffer[i + 1] : l; // 单声道设备：右 = 左
+
+            // 声音活动监测：只看采样峰值，数字静音（含系统静音）恒为 0
+            float al = MathF.Abs(l), ar = MathF.Abs(r);
+            if (al > peak) peak = al;
+            if (ar > peak) peak = ar;
 
             for (int j = 0; j < Bands; j++)
             {
@@ -267,6 +275,10 @@ internal sealed class StereoCapture : IDisposable
                 _backR = oldR;
             }
         }
+
+        // 超过阈值即刷新活动时间戳（IsAudioActive 的判定依据）
+        if (peak >= ActivityThreshold)
+            Volatile.Write(ref _lastAudioTicks, DateTime.UtcNow.Ticks);
     }
 
     public void Dispose() => Stop();

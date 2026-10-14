@@ -13,7 +13,7 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前插件版本：`1.3.2`
+- 当前插件版本：`1.4.0`
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`
@@ -43,11 +43,13 @@ NPS.AudioVisualizer/
 
 ### `src/AudioVisualizerPlugin.cs`
 
-实现 `INotchPlugin` 和 `IDisposable`。`Initialize` 读取持久化设置、订阅 `SettingsChanged`、注册岛组件及插件设置页，并通过 `ScheduleRefresh` 周期性启停立体声捕获。`Dispose` 退订事件、释放计划任务和捕获资源。
+实现 `INotchPlugin` 和 `IDisposable`。`Initialize` 读取持久化设置、订阅 `SettingsChanged`、注册岛组件及插件设置页，并通过 `ScheduleRefresh` 周期性启停立体声捕获。捕获需求为「双声道样式」或「自动隐藏开启」二者之一。`Dispose` 退订事件、释放计划任务和捕获资源。
+
+自动隐藏状态机也在该周期回调中驱动：静音满 1500ms（`HideDelayMs`）后把 `WidgetHidden` 置真并触发 `InvalidateWidgetLayout`；有声音、关闭开关或重置时经 `EnsureVisible` 恢复。只有捕获监测在运行时才允许隐藏，否则隐藏后没有恢复信号。
 
 ### `src/Core/VisualizerState.cs`
 
-保存 UI 共用状态、增益档位、平滑后的频段值和峰值。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
+保存 UI 共用状态、增益档位、平滑后的频段值和峰值，以及 `AutoHideWhenSilent` 开关。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
 
 ### `src/Rendering/BarMetrics.cs`
 
@@ -59,19 +61,19 @@ NPS.AudioVisualizer/
 
 ### `src/UI/VisualizerWidget.cs`
 
-实现 `IWidget`，负责灵动岛上的迷你频谱。组件宽度由柱宽档位决定；粗细变化后需要调用 `IPluginHost.InvalidateWidgetLayout()`，让宿主重新测量宽度。左键操作打开或关闭详情页。
+实现 `IWidget`，负责灵动岛上的迷你频谱。组件宽度由柱宽档位决定；自动隐藏生效时 `MeasureWidth` 返回 0（宿主宽度为 0 的组件不占插件行空间，且不再回调 `Draw`/`HitTest`，恢复依赖周期 tick 与独立声音监测）。粗细变化后需要调用 `IPluginHost.InvalidateWidgetLayout()`，让宿主重新测量宽度。左键操作打开或关闭详情页。
 
 ### `src/UI/VisualizerDetailPage.cs`
 
-实现 `IDetailPage`，绘制固定设计尺寸为 360×168 的详情页，并提供样式、粗细、配色和灵敏度切换按钮。设置变化写入宿主设置接口。
+实现 `IDetailPage`，绘制固定设计尺寸为 360×192 的详情页。设置区布局：四项设置两两一行，名称在左、选项片在右（候选项全部直接列出，点击即选中，动作名 `key:index`）；「无音频时自动隐藏」独占一行且与普通设置同列宽，开关动作 `autoHide`；「重置全部」按钮固定在该行最右侧，动作 `reset`，恢复五项默认值（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏）。选项片命中区在 `Draw` 每帧按当前字体度量重建，`HitTest` 复用最近一帧结果。设置变化写入宿主设置接口。
 
 ### `src/UI/VisualizerSettingsPage.cs`
 
-实现 `ISettingsPage` 和 `ICustomSettingsPage`。设置中心控件与详情页共用同一组设置键；下方自绘预览读取 `VisualizerState` 中的平滑值。此实现不依赖设置中心单独的 DLL。
+实现 `ISettingsPage` 和 `ICustomSettingsPage`。声明式控件含四个 `ChoiceSetting` 与一个 `ToggleSetting("autoHide", "无音频时自动隐藏", false)`；设置中心控件与详情页共用同一组设置键，开关值统一小写 `true` / `false`（与设置中心 NpsSettingsHub 的写入口径一致，读取侧同时兼容 `True` / `1`）。下方自绘预览读取 `VisualizerState` 中的平滑值。此实现不依赖设置中心单独的 DLL。
 
 ### `src/Audio/StereoCapture.cs`
 
-双声道模式的额外 WASAPI Loopback 捕获器。左右声道分别进行 Goertzel 频段分析，通过前后缓冲交换向绘制逻辑提供数据。仅双声道模式需要捕获；启动失败或数据中断时会重试，捕获不可用时绘制逻辑使用宿主单声道数据镜像回退。
+双声道模式的额外 WASAPI Loopback 捕获器，同时承担自动隐藏的声音活动监测。左右声道分别进行 Goertzel 频段分析，通过前后缓冲交换向绘制逻辑提供数据；`OnAudioData` 额外跟踪采样峰值，超过 `ActivityThreshold`（约 -56dBFS）即刷新 `_lastAudioTicks`，`IsAudioActive` 据此判定最近 700ms 内是否有真实声音（数字静音与系统静音恒为 0）。双声道样式或自动隐藏开启时运行；启动失败或数据中断时会重试，捕获不可用时绘制逻辑使用宿主单声道数据镜像回退，自动隐藏保持组件可见。
 
 ### `src/Rendering/PluginFont.cs`
 
@@ -81,7 +83,7 @@ NPS.AudioVisualizer/
 
 1. 普通柱形模式读取宿主每帧提供的 `WidgetFrame.Bars`，数据为 5 段归一化频谱。
 2. 双声道模式额外从默认输出设备进行 WASAPI Loopback，左右声道分别分析；宿主的 `Bars` 不提供可供本插件使用的独立右声道数据。
-3. `AudioVisualizerPlugin` 的周期回调根据 `State.Style` 启动、停止或恢复捕获。不要在 `Draw`、`HitTest` 或鼠标回调中打开音频设备或初始化 COM。
+3. `AudioVisualizerPlugin` 的周期回调根据 `State.Style == StyleDual || State.AutoHideWhenSilent` 启动、停止或恢复捕获，并顺带驱动自动隐藏状态机。不要在 `Draw`、`HitTest` 或鼠标回调中打开音频设备或初始化 COM。
 4. 组件和详情页绘制时调用 `VisualizerState.Feed` 更新平滑值。捕获缓冲只在当帧读取，不要把宿主传来的帧数组保存为长期状态。
 5. 捕获路径使用双缓冲交接数据。修改线程模型或数组所有权时，特别检查音频回调与 UI 绘制的并发读写。
 
@@ -95,6 +97,9 @@ NPS.AudioVisualizer/
 | `thickness` | `0` 细；`1` 标准；`2` 粗 | `1` |
 | `color` | `0` 主题色；`1` 彩虹色；`2` 霓虹色 | `1` |
 | `gainIdx` | `0` ×0.5；`1` ×0.8；`2` ×1；`3` ×1.5；`4` ×2 | `2` |
+| `autoHide` | 开关：小写 `true` / `false`（读取兼容 `True` / `1`） | `false` |
+
+开关由 `ToggleSetting` 声明、设置中心与详情页两处写入；设置中心的 NpsSettingsHub 对开关同样使用小写 `true` / `false`。`ReadSettings` 读取成功后无需额外动作，隐藏/恢复由周期 tick 判定；关闭开关或重置会立即经 `EnsureVisible` 恢复组件。
 
 旧版本将灵敏度倍率写在 `gain` 键中。`ReadGainIndex` 会在新键不存在或无效时，将旧浮点值映射到最接近的当前倍率并写入 `gainIdx`。增加或重排选项时，保持已有索引含义，或明确设计迁移，避免用户设置错位。
 

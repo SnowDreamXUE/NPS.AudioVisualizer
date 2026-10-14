@@ -4,33 +4,46 @@ using SkiaSharp;
 namespace NPS.AudioVisualizer;
 
 /// <summary>
-/// 详情页：大号频谱 + 样式设置面板（右键岛上组件展开）。
-/// 排版永远按固定 360×168 设计坐标系计算，绘制时整体缩放对齐到当前 rect ——
+/// 详情页：大号频谱 + 设置面板（右键岛上组件展开）。
+/// 排版永远按固定 360×192 设计坐标系计算，绘制时整体缩放对齐到当前 rect ——
 /// 展开 / 收起的弹簧动画期间 rect 是插值尺寸，拿它排版会每帧跳位。
+/// 设置区：四项设置两两一行（名称在左、选项片在右，点击直接选中）；
+/// 「无音频时自动隐藏」独占一行且与其他设置同宽，开关靠列右缘；
+/// 「重置全部」按钮固定在整行最右侧，与开关之间留出大段空白。
 /// </summary>
 internal sealed class VisualizerDetailPage : IDetailPage
 {
-    private const float LW = 360f, LH = 168f;
+    private const float LW = 360f, LH = 192f;
 
     // 频谱区（设计坐标系）
-    private const float SpecTop = 38f, SpecBottom = 118f;
+    private const float SpecTop = 36f, SpecBottom = 106f;
     private static readonly string[] BandNames = { "低频", "中低", "中频", "中高", "高频" };
 
-    // 交互热区（设计坐标系；动画结束后 scale=1，与命中口径 1:1）
-    // 四枚药丸：样式 / 粗细 / 配色 / 灵敏（宽 76、间距 8、左右边距 16）
-    private static readonly SKRect PillStyle = new(16, 138, 92, 160);
-    private static readonly SKRect PillThick = new(100, 138, 176, 160);
-    private static readonly SKRect PillColor = new(184, 138, 260, 160);
-    private static readonly SKRect PillGain = new(268, 138, 344, 160);
     private static readonly SKRect CloseBtn = new(330, 8, 352, 30);
+
+    // ---- 设置区网格（设计坐标系）----
+    private const float MarginX = 15f;                              // 左右外边距
+    private const float ColGap = 12f;                               // 两列间距
+    private const float ColW = (LW - MarginX * 2f - ColGap) * 0.5f; // 列宽（自动隐藏行同宽）
+    private const float Row1Top = 124f, Row2Top = 146f, RowH = 18f; // 前两行：四项设置
+    private const float AutoTop = 168f, AutoH = 20f;                // 末行：自动隐藏 + 重置
+    private const float ChipH = 14f, ChipPadX = 4f, ChipGap = 2.5f; // 选项片尺寸
+
+    // 各设置的候选项（与设置中心的选择框同口径）
+    private static readonly string[] StyleOptions = { SpectrumPaint.StyleName(0), SpectrumPaint.StyleName(1) };
+    private static readonly string[] ThicknessOptions = { BarMetrics.Name(0), BarMetrics.Name(1), BarMetrics.Name(2) };
+    private static readonly string[] ColorOptions = { SpectrumPaint.ColorName(0), SpectrumPaint.ColorName(1), SpectrumPaint.ColorName(2) };
 
     private readonly AudioVisualizerPlugin _plugin;
     private IPluginHost? _host;
 
+    // 点击热区：Draw 每帧按当前字体度量重建（字体可能随主题变化），HitTest 复用最近一帧的结果
+    private readonly List<(SKRect Rect, string Action)> _hits = new();
+
     public VisualizerDetailPage(AudioVisualizerPlugin plugin) => _plugin = plugin;
     internal void Attach(IPluginHost host) => _host = host;
 
-    // 宿主会把宽裁剪到 180~1000、高裁剪到 48~480，360×168 在安全区内
+    // 宿主会把宽裁剪到 180~1000、高裁剪到 48~480，360×192 在安全区内
     public float MeasureWidth() => LW;
     public float MeasureHeight() => LH;
 
@@ -49,7 +62,8 @@ internal sealed class VisualizerDetailPage : IDetailPage
         canvas.Translate(-LW * 0.5f, -LH * 0.5f);
 
         byte a = frame.Alpha;
-        var textColor = frame.Theme.TextColor.WithAlpha(a);
+        var theme = frame.Theme.TextColor;
+        var textColor = theme.WithAlpha(a);
         var subColor = frame.Theme.SubTextColor.WithAlpha(a);
 
         // ---- 标题行 ----
@@ -92,11 +106,19 @@ internal sealed class VisualizerDetailPage : IDetailPage
         for (int i = 0; i < VisualizerState.Bands; i++)
             canvas.DrawText(BandNames[i], x0 + i * (barW + gap) + barW * 0.5f, SpecBottom + 14, label);
 
-        // ---- 设置按钮（点击循环切换，写入注册表持久化）----
-        DrawPill(canvas, PillStyle, $"样式:{SpectrumPaint.StyleName(st.Style)}", frame);
-        DrawPill(canvas, PillThick, $"粗细:{BarMetrics.Name(st.Thickness)}", frame);
-        DrawPill(canvas, PillColor, $"配色:{SpectrumPaint.ColorName(st.ColorMode)}", frame);
-        DrawPill(canvas, PillGain, $"灵敏:{VisualizerState.GainNames[st.GainIndex]}", frame);
+        // ---- 设置区（名称在左、选项片在右，点击直接选中，写入注册表持久化）----
+        _hits.Clear();
+
+        using var settingLabel = new SKPaint { IsAntialias = true, TextSize = 9.5f, Typeface = PluginFont.Resolve(), Color = theme.WithAlpha((byte)(a * 0.85f)) };
+        using var chipText = new SKPaint { IsAntialias = true, TextSize = 9f, Typeface = PluginFont.Resolve(), TextAlign = SKTextAlign.Center };
+
+        float colL = MarginX, colR = MarginX + ColW + ColGap;
+        DrawChoiceRow(canvas, colL, Row1Top, "样式", StyleOptions, st.Style, "style", a, theme, settingLabel, chipText);
+        DrawChoiceRow(canvas, colR, Row1Top, "粗细", ThicknessOptions, st.Thickness, "thickness", a, theme, settingLabel, chipText);
+        DrawChoiceRow(canvas, colL, Row2Top, "配色", ColorOptions, st.ColorMode, "color", a, theme, settingLabel, chipText);
+        DrawChoiceRow(canvas, colR, Row2Top, "灵敏", VisualizerState.GainNames, st.GainIndex, "gain", a, theme, settingLabel, chipText);
+
+        DrawAutoRow(canvas, a, theme, settingLabel, chipText);
 
         canvas.Restore();
     }
@@ -161,30 +183,89 @@ internal sealed class VisualizerDetailPage : IDetailPage
         }
     }
 
-    /// <summary>药丸形设置按钮。</summary>
-    private static void DrawPill(SKCanvas canvas, SKRect r, string text, WidgetFrame frame)
+    /// <summary>一行设置：名称在左，选项片靠列右缘排开；点击选项片直接选中该值。</summary>
+    private void DrawChoiceRow(SKCanvas canvas, float left, float top, string label, string[] options, int selected,
+        string key, byte a, SKColor theme, SKPaint labelPaint, SKPaint chipPaint)
     {
-        byte a = frame.Alpha;
-        using (var bg = new SKPaint { IsAntialias = true, Color = frame.Theme.TextColor.WithAlpha((byte)(a * 0.10f)) })
-            canvas.DrawRoundRect(new SKRoundRect(r, 9f), bg);
-        using var tp = new SKPaint
+        float midY = top + RowH * 0.5f;
+        canvas.DrawText(label, left, midY + 3.4f, labelPaint);
+
+        // 选项片总宽（含间距），从列右缘往左排 —— 候选值直接点击，不用下拉框
+        float total = (options.Length - 1) * ChipGap;
+        for (int i = 0; i < options.Length; i++)
+            total += chipPaint.MeasureText(options[i]) + ChipPadX * 2f;
+
+        float x = left + ColW - total;
+        for (int i = 0; i < options.Length; i++)
+        {
+            float w = chipPaint.MeasureText(options[i]) + ChipPadX * 2f;
+            var r = new SKRect(x, midY - ChipH * 0.5f, x + w, midY + ChipH * 0.5f);
+            DrawChip(canvas, r, options[i], i == selected, a, theme, chipPaint);
+
+            // 命中区上下各扩 1，提高小控件的易点性（与相邻行仍留空隙）
+            _hits.Add((new SKRect(r.Left, r.Top - 1f, r.Right, r.Bottom + 1f), $"{key}:{i}"));
+            x += w + ChipGap;
+        }
+    }
+
+    /// <summary>末行：自动隐藏设置占左列（与其他设置同宽，开关靠列右缘），「重置全部」固定在整行最右侧。</summary>
+    private void DrawAutoRow(SKCanvas canvas, byte a, SKColor theme, SKPaint labelPaint, SKPaint chipPaint)
+    {
+        var st = _plugin.State;
+        float midY = AutoTop + AutoH * 0.5f;
+
+        canvas.DrawText("无音频时自动隐藏", MarginX, midY + 3.4f, labelPaint);
+
+        // 开关：与列右缘对齐，和重置按钮之间隔着整段空白，不会贴在一起
+        var sw = new SKRect(MarginX + ColW - 22f, midY - 6f, MarginX + ColW, midY + 6f);
+        DrawSwitch(canvas, sw, st.AutoHideWhenSilent, a, theme);
+        _hits.Add((new SKRect(sw.Left - 2f, sw.Top - 2f, sw.Right + 2f, sw.Bottom + 2f), "autoHide"));
+
+        // 重置全部：恢复五项默认设置（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏），样式与选项片一致
+        float w = chipPaint.MeasureText("重置全部") + 12f;
+        var r = new SKRect(LW - MarginX - w, midY - 8f, LW - MarginX, midY + 8f);
+        DrawChip(canvas, r, "重置全部", selected: false, a, theme, chipPaint);
+        _hits.Add((r, "reset"));
+    }
+
+    /// <summary>选项片：细边框圆角小块；选中项只用更亮的底色强调，与其他控件同色系（不引入彩色）。</summary>
+    private static void DrawChip(SKCanvas canvas, SKRect r, string text, bool selected, byte a, SKColor theme, SKPaint tp)
+    {
+        var rr = new SKRoundRect(r, 4f);
+        using (var bg = new SKPaint { IsAntialias = true, Color = theme.WithAlpha((byte)(a * (selected ? 0.22f : 0.08f))) })
+            canvas.DrawRoundRect(rr, bg);
+        using (var bd = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1f, Color = theme.WithAlpha((byte)(a * (selected ? 0.34f : 0.16f))) })
+            canvas.DrawRoundRect(rr, bd);
+
+        tp.Color = theme.WithAlpha((byte)(a * (selected ? 0.95f : 0.60f)));
+        canvas.DrawText(text, r.MidX, r.MidY + 3.2f, tp);
+    }
+
+    /// <summary>开关：开启时绿色轨道 + 右侧白点，关闭时中性灰轨道 + 左侧灰点。</summary>
+    private static void DrawSwitch(SKCanvas canvas, SKRect r, bool on, byte a, SKColor theme)
+    {
+        using (var track = new SKPaint
         {
             IsAntialias = true,
-            TextSize = 10f,
-            Typeface = PluginFont.Resolve(),
-            Color = frame.Theme.TextColor.WithAlpha((byte)(a * 0.85f)),
-            TextAlign = SKTextAlign.Center,
-        };
-        canvas.DrawText(text, r.MidX, r.MidY + 3.6f, tp);
+            Color = on ? SKColor.Parse("#22C55E").WithAlpha((byte)(a * 0.95f)) : theme.WithAlpha((byte)(a * 0.15f)),
+        })
+            canvas.DrawRoundRect(new SKRoundRect(r, r.Height * 0.5f), track);
+
+        float d = r.Height - 4f;
+        float kx = on ? r.Right - 2f - d : r.Left + 2f;
+        using (var knob = new SKPaint
+        {
+            IsAntialias = true,
+            Color = on ? new SKColor(255, 255, 255, (byte)(a * 0.95f)) : theme.WithAlpha((byte)(a * 0.80f)),
+        })
+            canvas.DrawCircle(kx + d * 0.5f, r.MidY, d * 0.5f, knob);
     }
 
     public WidgetHit HitTest(float x, float y, SKRect rect)
     {
         if (CloseBtn.Contains(x, y)) return new WidgetHit("close");
-        if (PillStyle.Contains(x, y)) return new WidgetHit("style");
-        if (PillThick.Contains(x, y)) return new WidgetHit("thickness");
-        if (PillColor.Contains(x, y)) return new WidgetHit("color");
-        if (PillGain.Contains(x, y)) return new WidgetHit("gain");
+        foreach (var (r, action) in _hits)
+            if (r.Contains(x, y)) return new WidgetHit(action);
         return WidgetHit.None;
     }
 
@@ -192,30 +273,63 @@ internal sealed class VisualizerDetailPage : IDetailPage
     {
         if (_host is not { } h) return;
         var st = _plugin.State;
+
         switch (action)
         {
             case "close":
                 h.CloseDetailPage();
-                break;
-            case "style":
-                st.Style = (st.Style + 1) % VisualizerState.StyleCount;
-                h.SetSetting("style", st.Style.ToString());
-                break;
-            case "thickness":
-                st.Thickness = (st.Thickness + 1) % 3;
-                h.SetSetting("thickness", st.Thickness.ToString());
-                // 岛组件宽度随粗细变化：宿主缓存了 MeasureWidth，必须通知重测
-                h.InvalidateWidgetLayout();
-                break;
-            case "color":
-                st.ColorMode = (st.ColorMode + 1) % 3;
-                h.SetSetting("color", st.ColorMode.ToString());
-                break;
-            case "gain":
-                // 与设置中心的选择框同口径：统一存索引（"gainIdx"）
-                st.GainIndex = (st.GainIndex + 1) % VisualizerState.GainSteps.Length;
-                h.SetSetting("gainIdx", st.GainIndex.ToString());
-                break;
+                return;
+            case "autoHide":
+                st.AutoHideWhenSilent = !st.AutoHideWhenSilent;
+                h.SetSetting("autoHide", st.AutoHideWhenSilent ? "true" : "false");
+                if (!st.AutoHideWhenSilent) _plugin.EnsureVisible(); // 关掉开关立即恢复显示
+                return;
+            case "reset":
+                // 重置全部：五项恢复默认值（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏）
+                bool relayout = st.Thickness != 1;
+                st.Style = 0;
+                st.Thickness = 1;
+                st.ColorMode = 1;
+                st.GainIndex = 2;
+                st.AutoHideWhenSilent = false;
+                h.SetSetting("style", "0");
+                h.SetSetting("thickness", "1");
+                h.SetSetting("color", "1");
+                h.SetSetting("gainIdx", "2");
+                h.SetSetting("autoHide", "false");
+                _plugin.EnsureVisible();
+                if (relayout) h.InvalidateWidgetLayout(); // 粗细档位变化 → 岛上组件宽度重测
+                return;
+        }
+
+        // 选项片："key:index"（点击即选中该值，不再是循环切换）
+        if (action is not null
+            && action.Split(':') is { Length: 2 } kv
+            && int.TryParse(kv[1], out int idx)
+            && idx >= 0)
+        {
+            switch (kv[0])
+            {
+                case "style":
+                    st.Style = idx % VisualizerState.StyleCount;
+                    h.SetSetting("style", st.Style.ToString());
+                    break;
+                case "thickness":
+                    st.Thickness = idx % 3;
+                    h.SetSetting("thickness", st.Thickness.ToString());
+                    // 岛组件宽度随粗细变化：宿主缓存了 MeasureWidth，必须通知重测
+                    h.InvalidateWidgetLayout();
+                    break;
+                case "color":
+                    st.ColorMode = idx % 3;
+                    h.SetSetting("color", st.ColorMode.ToString());
+                    break;
+                case "gain":
+                    // 与设置中心的选择框同口径：统一存索引（"gainIdx"）
+                    st.GainIndex = idx % VisualizerState.GainSteps.Length;
+                    h.SetSetting("gainIdx", st.GainIndex.ToString());
+                    break;
+            }
         }
     }
 }

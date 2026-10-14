@@ -27,9 +27,11 @@ internal sealed class VisualizerWidget : IWidget
     public string DisplayName => "音频频谱";
     public IDetailPage? DetailPage => _detail;
 
-    /// <summary>宽度 = 内边距×2 + 5×柱宽 + 4×间距，随粗细档位变化。</summary>
+    /// <summary>宽度 = 内边距×2 + 5×柱宽 + 4×间距，随粗细档位变化；自动隐藏生效时宽度归零，宿主重排即收回空位。</summary>
     public float MeasureWidth(float availableHeight)
     {
+        if (_plugin.WidgetHidden) return 0f;
+
         var (bar, gap) = BarMetrics.For(_plugin.State.Thickness, detail: false);
         return PadX * 2 + VisualizerState.Bands * bar + (VisualizerState.Bands - 1) * gap;
     }

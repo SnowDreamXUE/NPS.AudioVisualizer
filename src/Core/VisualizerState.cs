@@ -15,7 +15,7 @@ internal sealed class VisualizerState
 
     /// <summary>灵敏度档位（循环顺序即数组顺序；设置值统一存索引）。</summary>
     public static readonly float[] GainSteps = { 0.5f, 0.8f, 1f, 1.5f, 2f };
-    public static readonly string[] GainNames = { "x0.5", "x0.8", "x1", "x1.5", "x2" };
+    public static readonly string[] GainNames = { "×0.5", "×0.8", "×1", "×1.5", "×2" };
 
     // 设置项（写：点击回调 / 设置变更事件；读：渲染线程。volatile 保证跨线程可见性）
     public volatile int Style;
