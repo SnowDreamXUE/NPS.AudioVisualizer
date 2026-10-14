@@ -42,11 +42,13 @@ internal sealed class StereoCapture : IDisposable
     private WasapiLoopbackCapture? _capture;
     private volatile bool _running;
     private long _lastDataTicks;
+    private long _lastAudioTicks;
     private long _lastStartAttempt;
     private int _failCount;
     private string _capturedDeviceId = ""; // 启动时绑定的默认输出设备（感知切换用）
 
     public bool IsRunning => _running;
+    public bool IsAudioActive => _running && DateTime.UtcNow.Ticks - Volatile.Read(ref _lastAudioTicks) < TimeSpan.FromMilliseconds(700).Ticks;
 
     /// <summary>左 / 右声道频谱（捕获未运行时为 null，调用方回退镜像单声道）。只在 Draw 当帧读取。</summary>
     public float[]? FrontL => _running ? _frontL : null;

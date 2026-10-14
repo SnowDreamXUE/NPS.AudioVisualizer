@@ -25,6 +25,7 @@ internal sealed class VisualizerSettingsPage : ISettingsPage, ICustomSettingsPag
         new ChoiceSetting("thickness", "柱形粗细", new[] { "细", "标准", "粗" }, 1),
         new ChoiceSetting("color",     "配色",     new[] { "主题色", "彩虹色", "霓虹色" }, 1),
         new ChoiceSetting("gainIdx",   "灵敏度",   new[] { "×0.5", "×0.8", "×1", "×1.5", "×2" }, 2),
+        new ToggleSetting("autoHide", "无音频时自动隐藏", false),
     };
 
     // ---- 自绘实时预览（ICustomSettingsPage）----

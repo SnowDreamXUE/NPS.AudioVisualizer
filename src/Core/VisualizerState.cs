@@ -22,6 +22,7 @@ internal sealed class VisualizerState
     public volatile int Thickness = 1;  // 0 细 / 1 标准 / 2 粗
     public volatile int ColorMode;      // 0 主题 / 1 彩虹 / 2 霓虹
     public volatile int GainIndex = 2;  // 默认 ×1
+    public volatile bool AutoHideWhenSilent;
 
     /// <summary>当前灵敏度倍率（由档位索引查表）。</summary>
     public float Gain => GainSteps[GainIndex];
