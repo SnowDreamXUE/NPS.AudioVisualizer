@@ -50,7 +50,7 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前插件版本：`1.4.0`
+- 当前插件版本：`1.4.1`
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`
@@ -82,11 +82,11 @@ NPS.AudioVisualizer/
 
 实现 `INotchPlugin` 和 `IDisposable`。`Initialize` 读取持久化设置、订阅 `SettingsChanged`、注册岛组件及插件设置页，并通过 `ScheduleRefresh` 周期性启停立体声捕获。捕获需求为「双声道样式」或「自动隐藏开启」二者之一。`Dispose` 退订事件、释放计划任务和捕获资源。
 
-自动隐藏状态机也在该周期回调中驱动：静音满 1500ms（`HideDelayMs`）后把 `WidgetHidden` 置真并触发 `InvalidateWidgetLayout`；有声音、关闭开关或重置时经 `EnsureVisible` 恢复。只有捕获监测在运行时才允许隐藏，否则隐藏后没有恢复信号。
+自动隐藏状态机也在该周期回调中驱动：静音达到用户选择的 0、2、4、5、10 秒延迟后把 `WidgetHidden` 置真并触发 `InvalidateWidgetLayout`；有声音、关闭开关或重置时经 `EnsureVisible` 恢复。只有捕获监测在运行时才允许隐藏，否则隐藏后没有恢复信号。
 
 ### `src/Core/VisualizerState.cs`
 
-保存 UI 共用状态、增益档位、平滑后的频段值和峰值，以及 `AutoHideWhenSilent` 开关。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
+保存 UI 共用状态、增益档位、自动隐藏延迟、平滑后的频段值和峰值，以及 `AutoHideWhenSilent` 开关。岛组件与详情页共用状态，`Feed` 会按时间去重，避免同一帧因两个绘制入口而重复推进平滑值。
 
 ### `src/Rendering/BarMetrics.cs`
 
@@ -102,11 +102,11 @@ NPS.AudioVisualizer/
 
 ### `src/UI/VisualizerDetailPage.cs`
 
-实现 `IDetailPage`，绘制固定设计尺寸为 360×192 的详情页。设置区布局：四项设置两两一行，名称在左、选项片在右（候选项全部直接列出，点击即选中，动作名 `key:index`）；「无音频时自动隐藏」独占一行且与普通设置同列宽，开关动作 `autoHide`；「重置全部」按钮固定在该行最右侧，动作 `reset`，恢复五项默认值（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏）。选项片命中区在 `Draw` 每帧按当前字体度量重建，`HitTest` 复用最近一帧结果。设置变化写入宿主设置接口。
+实现 `IDetailPage`，绘制固定设计尺寸为 360×192 的详情页。设置区布局：四项设置两两一行，名称在左、选项片在右（候选项全部直接列出，点击即选中，动作名 `key:index`）；「无音频时自动隐藏」独占一行，左侧保留原有文字和开关，中间加入 0、2、4、5、10 秒延迟选项，重置按钮固定在该行最右侧，动作 `reset`，恢复六项默认值（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏 / 2 秒）。选项片命中区在 `Draw` 每帧按当前字体度量重建，`HitTest` 复用最近一帧结果。设置变化写入宿主设置接口。
 
 ### `src/UI/VisualizerSettingsPage.cs`
 
-实现 `ISettingsPage` 和 `ICustomSettingsPage`。声明式控件含四个 `ChoiceSetting` 与一个 `ToggleSetting("autoHide", "无音频时自动隐藏", false)`；设置中心控件与详情页共用同一组设置键，开关值统一小写 `true` / `false`（与设置中心 NpsSettingsHub 的写入口径一致，读取侧同时兼容 `True` / `1`）。下方自绘预览读取 `VisualizerState` 中的平滑值。此实现不依赖设置中心单独的 DLL。
+实现 `ISettingsPage` 和 `ICustomSettingsPage`。声明式控件含五个 `ChoiceSetting` 与一个 `ToggleSetting("autoHide", "无音频时自动隐藏", false)`；其中 `autoHideDelay` 提供 0、2、4、5、10 秒选项。设置中心控件与详情页共用同一组设置键，开关值统一小写 `true` / `false`（与设置中心 NpsSettingsHub 的写入口径一致，读取侧同时兼容 `True` / `1`）。下方自绘预览读取 `VisualizerState` 中的平滑值。此实现不依赖设置中心单独的 DLL。
 
 ### `src/Audio/StereoCapture.cs`
 
@@ -135,6 +135,7 @@ NPS.AudioVisualizer/
 | `color` | `0` 主题色；`1` 彩虹色；`2` 霓虹色 | `1` |
 | `gainIdx` | `0` ×0.5；`1` ×0.8；`2` ×1；`3` ×1.5；`4` ×2 | `2` |
 | `autoHide` | 开关：小写 `true` / `false`（读取兼容 `True` / `1`） | `false` |
+| `autoHideDelay` | `0` 立即隐藏；`1` 2 秒；`2` 4 秒；`3` 5 秒；`4` 10 秒 | `1` |
 
 开关由 `ToggleSetting` 声明、设置中心与详情页两处写入；设置中心的 NpsSettingsHub 对开关同样使用小写 `true` / `false`。`ReadSettings` 读取成功后无需额外动作，隐藏/恢复由周期 tick 判定；关闭开关或重置会立即经 `EnsureVisible` 恢复组件。
 

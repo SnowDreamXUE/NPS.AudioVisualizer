@@ -15,8 +15,7 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
     internal readonly VisualizerState State = new();
     internal readonly StereoCapture Stereo = new();
 
-    // 自动隐藏状态机：静音满 HideDelayMs 后隐藏（宽度归零），有声音立即恢复；由 1s 周期 tick 驱动
-    private const long HideDelayMs = 1500;
+    // 自动隐藏状态机：静音达到设置时长后隐藏（宽度归零），有声音立即恢复；由 100ms 周期 tick 驱动
     private volatile bool _widgetHidden;
     private long _silentSince;
 
@@ -26,7 +25,7 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
     // 反域名风格唯一 Id；DisplayName / Version / Author 显示在「我的插件」列表里
     public string Id => "com.nps.audiovisualizer";
     public string DisplayName => "音频可视化";
-    public string Version => "1.4.0";
+    public string Version => "1.4.1";
     public string Author => "SnowDream";
 
     public void Initialize(IPluginHost host)
@@ -42,14 +41,14 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
         host.RegisterSettingsPage(new VisualizerSettingsPage(this));
 
         // 立体声捕获按需启停：仅「双声道」样式或开启自动隐藏时运行，后台线程周期检查（含断流自愈 + 自动隐藏判定）
-        _stereoTimer = host.ScheduleRefresh(TimeSpan.FromSeconds(1), TickStereoCapture);
+        _stereoTimer = host.ScheduleRefresh(TimeSpan.FromMilliseconds(100), TickStereoCapture);
 
         host.PostReminder(new ReminderData
         {
             Title = "音频可视化已加载",
             Body = "右键岛上的频谱组件，可调整样式 / 粗细 / 配色 / 灵敏度，并可开启无音频自动隐藏",
         });
-        try { NotchPeninsula.Logger.Info("[AudioVisualizer] loaded v1.4.0"); } catch { }
+        try { NotchPeninsula.Logger.Info("[AudioVisualizer] loaded v1.4.1"); } catch { }
     }
 
     /// <summary>捕获的按需启停：双声道样式要真·左右声道数据；自动隐藏开启后组件隐藏了就没有宿主帧，也需要独立监测。顺带驱动自动隐藏判定。</summary>
@@ -64,7 +63,7 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
     }
 
     /// <summary>
-    /// 自动隐藏状态机（1s tick 驱动）：静音满 HideDelayMs 后隐藏（宽度归零收回空位），有声音立即恢复。
+    /// 自动隐藏状态机（100ms tick 驱动）：静音达到设置时长后隐藏（宽度归零收回空位），有声音立即恢复。
     /// 只有捕获监测在跑才允许隐藏 —— 否则隐藏后没有任何数据源能触发恢复。
     /// </summary>
     private void UpdateAutoHide()
@@ -92,7 +91,8 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
 
         long now = Environment.TickCount64;
         if (_silentSince == 0) _silentSince = now;
-        if (!_widgetHidden && now - _silentSince >= HideDelayMs)
+        long delayMs = State.AutoHideDelaySec * 1000L;
+        if (!_widgetHidden && now - _silentSince >= delayMs)
         {
             _widgetHidden = true;
             try { _host?.InvalidateWidgetLayout(); } catch { }
@@ -119,6 +119,15 @@ public sealed class AudioVisualizerPlugin : INotchPlugin, IDisposable
         State.ColorMode = ParseIndex(host.GetSetting("color", "1"), 3);
         State.GainIndex = ReadGainIndex(host);
         State.AutoHideWhenSilent = IsTrue(host.GetSetting("autoHide", "false"));
+
+        string delayRaw = host.GetSetting("autoHideDelay", "1");
+        int delayIndex = ParseIndex(delayRaw, VisualizerState.AutoHideDelayOptions.Length);
+        int delay = VisualizerState.AutoHideDelayOptions[delayIndex];
+        if (!int.TryParse(delayRaw, out int savedIndex) || savedIndex != delayIndex)
+        {
+            try { host.SetSetting("autoHideDelay", delayIndex.ToString()); } catch { }
+        }
+        State.AutoHideDelaySec = delay;
 
         int thick = ParseIndex(host.GetSetting("thickness", "1"), 3);
         if (thick != State.Thickness)

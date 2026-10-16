@@ -16,6 +16,8 @@ internal sealed class VisualizerState
     /// <summary>灵敏度档位（循环顺序即数组顺序；设置值统一存索引）。</summary>
     public static readonly float[] GainSteps = { 0.5f, 0.8f, 1f, 1.5f, 2f };
     public static readonly string[] GainNames = { "×0.5", "×0.8", "×1", "×1.5", "×2" };
+    public static readonly int[] AutoHideDelayOptions = { 0, 2, 4, 5, 10 };
+    public const int DefaultAutoHideDelaySec = 2;
 
     // 设置项（写：点击回调 / 设置变更事件；读：渲染线程。volatile 保证跨线程可见性）
     public volatile int Style;
@@ -23,6 +25,7 @@ internal sealed class VisualizerState
     public volatile int ColorMode;      // 0 主题 / 1 彩虹 / 2 霓虹
     public volatile int GainIndex = 2;  // 默认 ×1
     public volatile bool AutoHideWhenSilent;
+    public volatile int AutoHideDelaySec = DefaultAutoHideDelaySec;
 
     /// <summary>当前灵敏度倍率（由档位索引查表）。</summary>
     public float Gain => GainSteps[GainIndex];

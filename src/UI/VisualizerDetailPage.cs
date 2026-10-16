@@ -27,7 +27,8 @@ internal sealed class VisualizerDetailPage : IDetailPage
     private const float ColW = (LW - MarginX * 2f - ColGap) * 0.5f; // 列宽（自动隐藏行同宽）
     private const float Row1Top = 124f, Row2Top = 146f, RowH = 18f; // 前两行：四项设置
     private const float AutoTop = 168f, AutoH = 20f;                // 末行：自动隐藏 + 重置
-    private const float ChipH = 14f, ChipPadX = 4f, ChipGap = 2.5f; // 选项片尺寸
+    private const float ChipH = 14f, ChipPadX = 4f, ChipGap = 2.5f;
+    private const float AutoDelayChipH = 14f, AutoDelayGap = 2f;
 
     // 各设置的候选项（与设置中心的选择框同口径）
     private static readonly string[] StyleOptions = { SpectrumPaint.StyleName(0), SpectrumPaint.StyleName(1) };
@@ -89,6 +90,11 @@ internal sealed class VisualizerDetailPage : IDetailPage
         if (st.Style == VisualizerState.StyleDual)
         {
             DrawDualSpectrum(canvas, x0, span, barW, gap, frame, a, subColor, glow);
+        }
+        else if (!st.IsLive)
+        {
+            using var line = new SKPaint { IsAntialias = true, Color = frame.Theme.SubTextColor.WithAlpha((byte)(a * 0.55f)) };
+            canvas.DrawRect(x0 - 18f, SpecBottom - 1f, span + 36f, 1f, line);
         }
         else
         {
@@ -158,9 +164,8 @@ internal sealed class VisualizerDetailPage : IDetailPage
 
         if (!st.IsLive)
         {
-            // 无声音：居中一条线（主题文字色 —— 深色主题下即白线，浅色主题下保证可见）
-            using var line = new SKPaint { IsAntialias = true, Color = frame.Theme.TextColor.WithAlpha((byte)(a * 0.9f)) };
-            canvas.DrawRect(lineLeft, cy - 1f, lineRight - lineLeft, 2f, line);
+            using var line = new SKPaint { IsAntialias = true, Color = subColor.WithAlpha((byte)(a * 0.55f)) };
+            canvas.DrawRect(lineLeft, cy - 0.5f, lineRight - lineLeft, 1f, line);
             return;
         }
 
@@ -216,16 +221,41 @@ internal sealed class VisualizerDetailPage : IDetailPage
 
         canvas.DrawText("无音频时自动隐藏", MarginX, midY + 3.4f, labelPaint);
 
-        // 开关：与列右缘对齐，和重置按钮之间隔着整段空白，不会贴在一起
-        var sw = new SKRect(MarginX + ColW - 22f, midY - 6f, MarginX + ColW, midY + 6f);
+        var sw = new SKRect(MarginX + 137f, midY - 6f, MarginX + 159f, midY + 6f);
         DrawSwitch(canvas, sw, st.AutoHideWhenSilent, a, theme);
         _hits.Add((new SKRect(sw.Left - 2f, sw.Top - 2f, sw.Right + 2f, sw.Bottom + 2f), "autoHide"));
 
-        // 重置全部：恢复五项默认设置（柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏），样式与选项片一致
-        float w = chipPaint.MeasureText("重置全部") + 12f;
-        var r = new SKRect(LW - MarginX - w, midY - 8f, LW - MarginX, midY + 8f);
-        DrawChip(canvas, r, "重置全部", selected: false, a, theme, chipPaint);
-        _hits.Add((r, "reset"));
+        using var delayPaint = new SKPaint
+        {
+            IsAntialias = true,
+            TextSize = 9f,
+            Typeface = PluginFont.Resolve(),
+            TextAlign = SKTextAlign.Center,
+        };
+        float x = sw.Right + 12f;
+        for (int i = 0; i < VisualizerState.AutoHideDelayOptions.Length; i++)
+        {
+            string text = VisualizerState.AutoHideDelayOptions[i].ToString();
+            float w = delayPaint.MeasureText(text) + 5f;
+            var r = new SKRect(x, midY - AutoDelayChipH * 0.5f, x + w, midY + AutoDelayChipH * 0.5f);
+            DrawChip(canvas, r, text, VisualizerState.AutoHideDelayOptions[i] == st.AutoHideDelaySec, a, theme, delayPaint);
+            _hits.Add((new SKRect(r.Left, r.Top - 1f, r.Right, r.Bottom + 1f), $"autoHideDelay:{i}"));
+            x += w + AutoDelayGap;
+        }
+
+        using var unitPaint = new SKPaint
+        {
+            IsAntialias = true,
+            TextSize = 9f,
+            Typeface = PluginFont.Resolve(),
+            Color = theme.WithAlpha((byte)(a * 0.60f)),
+        };
+        canvas.DrawText("秒", x + 1f, midY + 3.2f, unitPaint);
+
+        float resetW = chipPaint.MeasureText("重置全部") + 12f;
+        var reset = new SKRect(LW - MarginX - resetW, midY - 8f, LW - MarginX, midY + 8f);
+        DrawChip(canvas, reset, "重置全部", selected: false, a, theme, chipPaint);
+        _hits.Add((reset, "reset"));
     }
 
     /// <summary>选项片：细边框圆角小块；选中项只用更亮的底色强调，与其他控件同色系（不引入彩色）。</summary>
@@ -292,11 +322,13 @@ internal sealed class VisualizerDetailPage : IDetailPage
                 st.ColorMode = 1;
                 st.GainIndex = 2;
                 st.AutoHideWhenSilent = false;
+                st.AutoHideDelaySec = VisualizerState.DefaultAutoHideDelaySec;
                 h.SetSetting("style", "0");
                 h.SetSetting("thickness", "1");
                 h.SetSetting("color", "1");
                 h.SetSetting("gainIdx", "2");
                 h.SetSetting("autoHide", "false");
+                h.SetSetting("autoHideDelay", "1");
                 _plugin.EnsureVisible();
                 if (relayout) h.InvalidateWidgetLayout(); // 粗细档位变化 → 岛上组件宽度重测
                 return;
@@ -328,6 +360,10 @@ internal sealed class VisualizerDetailPage : IDetailPage
                     // 与设置中心的选择框同口径：统一存索引（"gainIdx"）
                     st.GainIndex = idx % VisualizerState.GainSteps.Length;
                     h.SetSetting("gainIdx", st.GainIndex.ToString());
+                    break;
+                case "autoHideDelay":
+                    st.AutoHideDelaySec = VisualizerState.AutoHideDelayOptions[idx % VisualizerState.AutoHideDelayOptions.Length];
+                    h.SetSetting("autoHideDelay", (idx % VisualizerState.AutoHideDelayOptions.Length).ToString());
                     break;
             }
         }
