@@ -13,4 +13,8 @@ obj/
 # AI 开发过程缓存（设计方案、临时补丁、分析记录等）
 .ai-work/
 
+.trae-html-share-packages/
+.superpowers/
+.uploads/
+
 # 注意：releases/ 目录下的 NPS.AudioVisualizer.dll 是有意提交的分发产物，不要全局忽略 *.dll
