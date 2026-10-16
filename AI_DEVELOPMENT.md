@@ -1,6 +1,6 @@
 # AI 开发交接说明
 
-本文档供接手 `NPS.AudioVisualizer` 的 AI 开发工具阅读。它记录当前代码结构、宿主耦合点，以及不在用户本机编译的开发方式。
+本文档供接手 `NPS.AudioVisualizer` 的 AI 开发工具阅读。它记录当前代码结构、宿主耦合点，以及用户本机与 TRAE Work 云环境的构建方式。
 
 ## Git 工作流与提交规范
 
@@ -21,7 +21,8 @@
 
 - 先阅读相关源码、宿主 API 文档和现有约定，再确定方案；保持改动范围与任务一致，不顺手重构无关代码。
 - AI 设计方案、分析记录、临时补丁、截图和调试输出统一放在仓库根目录的 `.ai-work/` 下。这些文件是本地缓存，不属于交付内容，不要 `git add` 或提交。
-- 只有明确属于项目交付物的源码、文档、资源和经过确认的发布产物才加入暂存区。提交前检查未跟踪文件，避免把密钥、个人配置、IDE 文件、构建输出或缓存带入提交。
+- 其他工具产生的无关产物也不得进入仓库，包括 `.trae-html-share-packages/`、`.superpowers/`、`.uploads/`、HTML 预览包、截图、日志、PID/状态文件、个人配置、IDE 文件、构建输出和缓存；发现这类内容时应删除或移出工作区，不要提交。
+- 只有明确属于项目交付物的源码、文档、资源和经过确认的发布产物才加入暂存区。提交前逐项检查 `git status` 和暂存区，避免使用无法确认内容的批量暂存命令。
 - 不要擅自修改或删除用户已有改动；不确定文件是否应纳入任务时，先保留并询问。
 
 ### 完成任务前
@@ -41,9 +42,10 @@
 
 ## 开发约束
 
-- 用户希望在其他平台继续开发，**不要在用户本机执行 `dotnet build`、`dotnet test` 或其他本地编译流程**。
-- 代码改动应以源码审阅为主。若任务需要编译产物，只能使用用户选定的远程开发平台或托管构建环境；说明构建是否成功以及产物位置。
-- 仓库当前没有 CI 构建工作流或测试工程；`releases/` 目录中的预编译 DLL 对应最近一次远程构建，不代表最新源码改动已通过构建或测试。
+- 运行环境为用户本机时，**不要在用户本机执行 `dotnet build`、`dotnet test` 或其他本地编译流程**；应以源码审阅为主，并说明无法在本机验证构建。
+- 当前运行环境若是 TRAE Work 提供的云电脑或用户明确选定的远程构建平台，则应在该环境中自行检查并下载所需的 .NET SDK、宿主源码、NuGet 依赖和其他构建依赖，完成可行的构建与验证；不得把“禁止用户本机编译”误解为“禁止云环境构建”。
+- 远程构建需要生成或更新 DLL 时，说明构建是否成功以及产物位置；仅将经过确认的发布产物放入 `releases/`，不要提交 `bin/`、`obj/` 或临时构建缓存。
+- 仓库当前没有 CI 构建工作流或测试工程；`releases/` 目录中的预编译 DLL 对应最近一次远程构建，不代表每次源码改动都已通过构建或测试。
 - 改动宿主接口前，先查阅宿主对应版本的官方 API 文档和源码。不要仅凭其他 NotchPeninsula 版本的接口猜测。
 - 尽量保持插件仍以单个 `NPS.AudioVisualizer.dll` 分发；不要把宿主运行时已提供的依赖复制进插件目录。
 
@@ -163,10 +165,10 @@ NPS.AudioVisualizer/
 └── NPS.AudioVisualizer/  # 本插件仓库
 ```
 
-在托管 Windows runner 或所选远程开发平台中配置 .NET 10 SDK 和上述目录后，进入 `NPS.AudioVisualizer` 项目目录再构建。项目的 `InstallToHostPlugins` 目标会把 DLL 复制到宿主输出目录的 `plugins` 文件夹。不要在用户本机运行下面的远程构建命令：
+在 TRAE Work 云电脑、托管 Windows runner 或其他所选远程开发平台中，先确认或安装 .NET 10 SDK，并按上述目录布局下载目标宿主源码和 NuGet 依赖；然后进入 `NPS.AudioVisualizer` 项目目录构建。项目的 `InstallToHostPlugins` 目标会把 DLL 复制到宿主输出目录的 `plugins` 文件夹。若当前环境是用户本机，不要运行下面的构建命令；若当前环境是 TRAE Work 云电脑或其他授权的远程环境，则应运行并验证构建结果：
 
 ```powershell
-dotnet build NPS.AudioVisualizer.csproj -c Release
+dotnet build NPS.AudioVisualizer.csproj -c Release -p:EnableWindowsTargeting=true
 ```
 
 构建产物预期位于插件项目的 `bin\Release\net10.0-windows10.0.19041.0\NPS.AudioVisualizer.dll`。生成产物后，先核对它与目标宿主 API/运行时版本匹配，再通过远程平台提供的方式交付。
