@@ -26,6 +26,7 @@ internal sealed class VisualizerSettingsPage : ISettingsPage, ICustomSettingsPag
         new ChoiceSetting("color",     "配色",     new[] { "主题色", "彩虹色", "霓虹色" }, 1),
         new ChoiceSetting("gainIdx",   "灵敏度",   new[] { "×0.5", "×0.8", "×1", "×1.5", "×2" }, 2),
         new ToggleSetting("autoHide", "无音频时自动隐藏", false),
+        new ChoiceSetting("autoHideDelay", "隐藏延迟（秒）", new[] { "0", "2", "4", "5", "10" }, 1),
     };
 
     // ---- 自绘实时预览（ICustomSettingsPage）----
@@ -55,6 +56,11 @@ internal sealed class VisualizerSettingsPage : ISettingsPage, ICustomSettingsPag
         {
             DrawDualPreview(canvas, x0, span, barW, gap, areaTop, areaBottom, st, text, sub, glow);
         }
+        else if (!st.IsLive)
+        {
+            using var line = new SKPaint { IsAntialias = true, Color = sub.WithAlpha(140) };
+            canvas.DrawRect(x0 - 18f, areaBottom - 1f, span + 36f, 1f, line);
+        }
         else
         {
             float maxH = areaBottom - areaTop;
@@ -62,7 +68,7 @@ internal sealed class VisualizerSettingsPage : ISettingsPage, ICustomSettingsPag
             for (int i = 0; i < VisualizerState.Bands; i++)
             {
                 float v = st.Smooth[i];
-                float h = Math.Max(3f, v * maxH);
+                float h = v * maxH;
                 float x = x0 + i * (barW + gap);
                 SpectrumPaint.DrawGlowBar(canvas, new SKRect(x, areaBottom - h, x + barW, areaBottom),
                     radius, SpectrumPaint.ColorFor(st, i, text), 255, glow);

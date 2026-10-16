@@ -56,11 +56,22 @@ internal sealed class VisualizerWidget : IWidget
         }
 
         // 柱形
+        if (!st.IsLive)
+        {
+            using var line = new SKPaint
+            {
+                IsAntialias = true,
+                Color = frame.Theme.SubTextColor.WithAlpha((byte)(frame.Alpha * 0.55f)),
+            };
+            canvas.DrawRect(rect.Left + PadX, rect.Bottom - 1f, rect.Width - PadX * 2f, 1f, line);
+            return;
+        }
+
         float radius = Math.Min(1.8f, barW * 0.4f);
         for (int i = 0; i < VisualizerState.Bands; i++)
         {
             float v = st.Smooth[i];
-            float h = Math.Max(1.6f, v * maxH); // 无音频时留一道细细的基线
+            float h = v * maxH;
             float x = rect.Left + PadX + i * (barW + gap);
             SpectrumPaint.DrawGlowBar(canvas, new SKRect(x, bottom - h, x + barW, bottom),
                 radius, SpectrumPaint.ColorFor(st, i, frame), frame.Alpha, glow);
