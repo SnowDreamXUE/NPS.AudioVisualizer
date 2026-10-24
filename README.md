@@ -1,6 +1,6 @@
 # NPS.AudioVisualizer
 
-NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前版本为 **1.4.1**，插件 ID 为 `com.nps.audiovisualizer`。
+NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前版本为 **1.5.0**，插件 ID 为 `com.nps.audiovisualizer`。
 
 ## 功能
 
@@ -40,7 +40,7 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 | `src/Rendering/SpectrumPaint.cs` | 频段配色与柱形/辉光绘制 |
 | `src/Rendering/PluginFont.cs` | 从宿主取得当前字体 |
 | `src/Audio/StereoCapture.cs` | WASAPI Loopback 左右声道捕获、Goertzel 分析、双缓冲和声音活动监测 |
-| `src/UI/VisualizerWidget.cs` | 灵动岛上的迷你频谱组件及其宽度测量（自动隐藏时宽度归零） |
+| `src/UI/VisualizerWidget.cs` | 灵动岛上的迷你频谱组件及其 AutoWidth 布局（自动隐藏时返回空布局） |
 | `src/UI/VisualizerDetailPage.cs` | 详情页频谱绘制、设置选项片 / 自动隐藏开关 / 重置交互 |
 | `src/UI/VisualizerSettingsPage.cs` | 插件设置中心的选项和实时预览 |
 | `NPS.AudioVisualizer.csproj` | 目标框架、宿主项目引用和编译依赖 |
@@ -51,13 +51,14 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 
 项目当前面向 `net10.0-windows10.0.19041.0`。项目文件位于仓库根目录，通过相对路径引用同级的 `NotchPeninsula` 宿主源码工程，因此单独检出本仓库并不能解析完整的编译引用。当前仓库没有包含 CI 构建工作流，预编译产物位于 `releases/` 目录；远程构建所需的目录布局、依赖和注意事项见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
 
-本插件当前适配的宿主为 **NotchPeninsula 正式版 2.0.0**（GitHub release [NotchPeninsula 2.0](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.0)，对应 tag `NPS-v2.0`）。更新宿主兼容性前，请以该 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
+本插件当前适配的宿主为 **NotchPeninsula 正式版 2.1.0**（GitHub release [NotchPeninsula 2.1.0](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.1.0)，对应 tag `NPS-v2.1.0`）。本版本将灵动岛组件迁移到宿主 AutoWidth 布局协议；由于 2.0.0 不包含该接口，插件 1.5.0 起要求宿主 2.1.0 或更高版本。更新宿主兼容性前，请以对应 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
 
 - [NotchPeninsula 宿主仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
-- [NPS-v2.0 的插件开发 API 文档](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.0/NPS_PluginsAPI.md)
+- [NPS-v2.1.0 的插件开发 API 文档](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.1.0/NPS_PluginsAPI.md)
 
 ## 版本记录
 
+- **1.5.0**：适配 NotchPeninsula 正式版 2.1.0，将灵动岛频谱组件迁移到 `IAutoWidthWidget` / `WidgetKit` 布局协议；目标框架与 SkiaSharp、NAudio 版本保持不变。
 - **1.4.1**：修复静音频谱的视觉表现，静音时不再绘制底部圆点或最低高度柱体，统一保留低透明度细中心线；双声道静音时同样只保留中心线。新增无音频自动隐藏延迟选项，可选择 0、2、4、5、10 秒，选项位于原有开关与重置按钮之间；自动隐藏检测周期调整为 100ms，以支持立即隐藏和短延迟设置。
 - **1.4.0**：美化详情页设置区并新增无音频自动隐藏。设置区改为名称在左、候选项直接点击选中（无下拉框），四项设置两两一行；「无音频时自动隐藏」独占一行且与其他设置同宽，重置全部按钮固定在该行最右侧；面板高度 168→192。自动隐藏开启时静音约 1.5 秒后组件宽度归零、收回灵动岛占位，声音恢复即重新显示（基于 WASAPI 独立声音活动监测，监测不可用时保持显示）；新增重置全部，恢复柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏五项默认值；设置中心同步新增开关项。
 - **1.3.2**：修复切换默认音频输出设备后双声道频谱冻结的问题——订阅 NAudio `RecordingStopped` 即时清零并重建（频谱落底而非卡在半空）、周期 tick 比对默认设备 ID 秒级跟随切换、捕获释放改为后台线程（不再阻塞宿主定时回调）、失败重试限速 3s→1.5s 且成功不计时；另在绘制层加 600ms 陈旧数据兜底，任何上游冻结最多表现为频谱落底。频谱算法、设置与持久化行为不变。

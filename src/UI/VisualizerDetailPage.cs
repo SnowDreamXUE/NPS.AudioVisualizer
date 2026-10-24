@@ -349,7 +349,7 @@ internal sealed class VisualizerDetailPage : IDetailPage
                 case "thickness":
                     st.Thickness = idx % 3;
                     h.SetSetting("thickness", st.Thickness.ToString());
-                    // 岛组件宽度随粗细变化：宿主缓存了 MeasureWidth，必须通知重测
+                    // AutoWidth 布局随粗细变化：必须通知宿主重新布局
                     h.InvalidateWidgetLayout();
                     break;
                 case "color":
