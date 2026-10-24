@@ -52,16 +52,16 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前插件版本：`1.4.1`
+- 当前插件版本：`1.5.0`
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`
-- 目标宿主版本：**NotchPeninsula 正式版 2.0.0**（GitHub tag `NPS-v2.0`，release「NotchPeninsula 2.0」）。当前仓库没有包含宿主源码，变更兼容性前应核对目标 tag 的实际接口。
+- 目标宿主版本：**NotchPeninsula 正式版 2.1.0**（GitHub tag `NPS-v2.1.0`，release「NotchPeninsula 2.1.0」）。插件 1.5.0 起使用该版本新增的 `IAutoWidthWidget` / `WidgetKit`，不兼容缺少该接口的 2.0.0。当前仓库没有包含宿主源码，变更兼容性前应核对目标 tag 的实际接口。
 
 官方参考：
 
 - [NotchPeninsula 仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
-- [NPS-v2.0 tag 的 NPS_PluginsAPI.md 插件开发说明](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.0/NPS_PluginsAPI.md)
+- [NPS-v2.1.0 tag 的 NPS_PluginsAPI.md 插件开发说明](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.1.0/NPS_PluginsAPI.md)
 - 若目标版本有对应 tag，应优先使用该 tag 的 API 文档和宿主源码，不要默认 `main` 与已发布版本完全一致。
 
 ## 当前实现结构
@@ -100,7 +100,7 @@ NPS.AudioVisualizer/
 
 ### `src/UI/VisualizerWidget.cs`
 
-实现 `IWidget`，负责灵动岛上的迷你频谱。组件宽度由柱宽档位决定；自动隐藏生效时 `MeasureWidth` 返回 0（宿主宽度为 0 的组件不占插件行空间，且不再回调 `Draw`/`HitTest`，恢复依赖周期 tick 与独立声音监测）。粗细变化后需要调用 `IPluginHost.InvalidateWidgetLayout()`，让宿主重新测量宽度。左键操作打开或关闭详情页。
+实现 `IAutoWidthWidget`，负责灵动岛上的迷你频谱。`Layout` 通过 `WidgetKit` 描述当前柱宽档位和边距；自动隐藏生效时返回 `null`，组件不占插件行空间，恢复依赖周期 tick 与独立声音监测。粗细变化后仍通过 `IPluginHost.InvalidateWidgetLayout()` 通知宿主重新布局。绘制使用 `WidgetKit.ContentRect` 对齐宿主 AutoWidth 留白，左键操作打开或关闭详情页。
 
 ### `src/UI/VisualizerDetailPage.cs`
 
@@ -155,7 +155,7 @@ NPS.AudioVisualizer/
 
 ## 项目引用与依赖
 
-`NPS.AudioVisualizer.csproj` 通过相对路径引用 `..\NotchPeninsula\NotchPeninsula.csproj`，并设置 `Private="false"`。SkiaSharp 版本为 2.88.8，NAudio.Core 和 NAudio.Wasapi 版本为 2.2.1，项目配置将它们作为编译引用，运行时依赖由宿主提供。以上框架与包版本已核对与宿主 2.0.0（tag `NPS-v2.0`）一致：宿主 `NotchPeninsula.csproj` 同为 `net10.0-windows10.0.19041.0`，运行时加载相同版本的 SkiaSharp 与 NAudio 程序集，插件不随带这些依赖。
+`NPS.AudioVisualizer.csproj` 通过相对路径引用 `..\NotchPeninsula\NotchPeninsula.csproj`，并设置 `Private="false"`。SkiaSharp 版本为 2.88.8，NAudio.Core 和 NAudio.Wasapi 版本为 2.2.1，项目配置将它们作为编译引用，运行时依赖由宿主提供。以上框架与包版本已核对与宿主 2.1.0（tag `NPS-v2.1.0`）一致：宿主 `NotchPeninsula.csproj` 同为 `net10.0-windows10.0.19041.0`，运行时加载相同版本的 SkiaSharp 与 NAudio 程序集，插件不随带这些依赖。宿主 2.1.0 新增 `IAutoWidthWidget` / `WidgetKit`，该接口用于组件宽度与盒布局测量。
 
 如果远程环境需要构建，两个仓库必须按相对路径并列放置，不能把插件源码放进宿主仓库目录（宿主项目的默认源文件通配可能把插件代码一并编译进宿主）：
 

@@ -4,12 +4,10 @@ using SkiaSharp;
 namespace NPS.AudioVisualizer;
 
 /// <summary>
-/// 灵动岛上的迷你频谱组件：柱形 / 双声道 两种样式，柱宽随「粗细」设置变化。
-/// 宽度随粗细档位变化 —— 粗细切换后必须调 IPluginHost.InvalidateWidgetLayout
-/// 通知宿主重测（宿主按注册表版本缓存宽度，不会每帧问）。
+/// 灵动岛上的迷你频谱组件：柱形 / 双声道 两种样式，使用宿主 AutoWidth 协议布局。
 /// 左键单击与右键默认行为一致：开合详情页。
 /// </summary>
-internal sealed class VisualizerWidget : IWidget
+internal sealed class VisualizerWidget : IAutoWidthWidget
 {
     private const float PadX = 4f;
 
@@ -27,13 +25,14 @@ internal sealed class VisualizerWidget : IWidget
     public string DisplayName => "音频频谱";
     public IDetailPage? DetailPage => _detail;
 
-    /// <summary>宽度 = 内边距×2 + 5×柱宽 + 4×间距，随粗细档位变化；自动隐藏生效时宽度归零，宿主重排即收回空位。</summary>
-    public float MeasureWidth(float availableHeight)
+    public Box? Layout(float availableHeight)
     {
-        if (_plugin.WidgetHidden) return 0f;
+        if (_plugin.WidgetHidden) return null;
 
         var (bar, gap) = BarMetrics.For(_plugin.State.Thickness, detail: false);
-        return PadX * 2 + VisualizerState.Bands * bar + (VisualizerState.Bands - 1) * gap;
+        float span = VisualizerState.Bands * bar + (VisualizerState.Bands - 1) * gap;
+        float inset = PadX - WidgetKit.AutoPadX;
+        return WidgetKit.Row(WidgetKit.Gap(inset), WidgetKit.Icon(span), WidgetKit.Gap(inset));
     }
 
     public void Draw(SKCanvas canvas, SKRect rect, WidgetFrame frame)
@@ -43,8 +42,12 @@ internal sealed class VisualizerWidget : IWidget
         var st = _plugin.State;
         st.Feed(frame.Bars, _plugin.Stereo.FrontL, _plugin.Stereo.FrontR); // 只当帧读取
 
-        float bottom = rect.Bottom - 3f;
-        float maxH = Math.Max(6f, rect.Height - 6f);
+        var content = WidgetKit.ContentRect(rect);
+        float inset = PadX - WidgetKit.AutoPadX;
+        float spectrumLeft = content.Left + inset;
+        float spectrumWidth = content.Width - inset * 2f;
+        float bottom = content.Bottom - 3f;
+        float maxH = Math.Max(6f, content.Height - 6f);
         var (barW, gap) = BarMetrics.For(st.Thickness, detail: false);
         bool glow = SpectrumPaint.UseGlow(st);
 
@@ -63,7 +66,7 @@ internal sealed class VisualizerWidget : IWidget
                 IsAntialias = true,
                 Color = frame.Theme.SubTextColor.WithAlpha((byte)(frame.Alpha * 0.55f)),
             };
-            canvas.DrawRect(rect.Left + PadX, rect.Bottom - 1f, rect.Width - PadX * 2f, 1f, line);
+            canvas.DrawRect(spectrumLeft, content.Bottom - 1f, spectrumWidth, 1f, line);
             return;
         }
 
@@ -72,7 +75,7 @@ internal sealed class VisualizerWidget : IWidget
         {
             float v = st.Smooth[i];
             float h = v * maxH;
-            float x = rect.Left + PadX + i * (barW + gap);
+            float x = spectrumLeft + i * (barW + gap);
             SpectrumPaint.DrawGlowBar(canvas, new SKRect(x, bottom - h, x + barW, bottom),
                 radius, SpectrumPaint.ColorFor(st, i, frame), frame.Alpha, glow);
         }
