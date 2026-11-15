@@ -52,17 +52,19 @@
 ## 项目与宿主
 
 - 插件 ID：`com.nps.audiovisualizer`
-- 当前源码版本：`1.5.1`（`releases/` 中仍是 1.5.0，需用 2.2.3 宿主源码重新构建后更新）
+- 当前插件版本：`1.5.1`（`releases/` 中 DLL 使用 2.2.3 宿主源码构建）
 - 目标框架：`net10.0-windows10.0.19041.0`
 - 插件入口：`AudioVisualizerPlugin`
 - 宿主 API 命名空间：`NotchPeninsula.Plugins`
-- 当前源码最低宿主版本：**NotchPeninsula 正式版 2.2.3**（GitHub tag `NPS-v2.2.3`）。插件 1.5.1 起使用该版本新增的 `PluginTone`；`releases/` 中的 1.5.0 DLL 仍以 2.1.0 为最低版本。当前仓库没有包含宿主源码，变更兼容性前应核对目标 tag 的实际接口。
+- 当前最低宿主版本：**NotchPeninsula 正式版 2.2.3**（GitHub tag `NPS-v2.2.3`）。插件 1.5.1 起使用该版本新增的 `PluginTone`。当前仓库没有包含宿主源码，变更兼容性前应核对目标 tag 的实际接口。
 
 官方参考：
 
 - [NotchPeninsula 仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
 - [NPS-v2.2.3 tag 的 NPS_PluginsAPI.md 插件开发说明](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.2.3/NPS_PluginsAPI.md)
 - 若目标版本有对应 tag，应优先使用该 tag 的 API 文档和宿主源码，不要默认 `main` 与已发布版本完全一致。
+
+仓库根目录的 `market.json` 沿用官方市场条目 ID `audio-visualizer`，记录上传所需的版本、`minNpsVersion` 和 `releases/` DLL 的大小与 SHA-256。每次更新发布 DLL 时同步这些值；该文件不会自动修改官方市场，上传时仍需在市场侧填写一致的版本门槛。
 
 ## 当前实现结构
 
@@ -71,6 +73,7 @@
 ```text
 NPS.AudioVisualizer/
 ├── NPS.AudioVisualizer.csproj
+├── market.json
 ├── src/
 │   ├── AudioVisualizerPlugin.cs
 │   ├── Core/VisualizerState.cs

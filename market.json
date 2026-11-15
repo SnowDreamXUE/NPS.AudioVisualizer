@@ -1,0 +1,22 @@
+{
+  "plugins": [
+    {
+      "id": "audio-visualizer",
+      "name": "AudioVisualizer-音频可视化",
+      "author": "SnowDream",
+      "desc": "在 NotchPeninsula 灵动岛与详情页显示系统音频的实时五段频谱，支持柱形和双声道样式、三档柱宽、三种配色、五档灵敏度及静音自动隐藏。需要 NPS 2.2.3 或更高版本。",
+      "category": "media",
+      "version": "1.5.1",
+      "tags": ["音频可视化"],
+      "minNpsVersion": "2.2.3",
+      "files": [
+        {
+          "name": "NPS.AudioVisualizer.dll",
+          "path": "releases/NPS.AudioVisualizer.dll",
+          "size": 30720,
+          "sha256": "3775655f49ece6448f0c5b463c54df7ab19de56b07d8c01fead88e9867bcfc0c"
+        }
+      ]
+    }
+  ]
+}

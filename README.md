@@ -1,6 +1,6 @@
 # NPS.AudioVisualizer
 
-NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前源码版本为 **1.5.1**，插件 ID 为 `com.nps.audiovisualizer`。
+NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中显示实时频谱。项目以 C# 编写，当前版本为 **1.5.1**，插件 ID 为 `com.nps.audiovisualizer`。
 
 ## 功能
 
@@ -21,7 +21,7 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 
 ## 安装（无需本机编译）
 
-安装需要一份与目标 NotchPeninsula 版本兼容的预编译 `NPS.AudioVisualizer.dll`。`releases/` 目录目前仍是 1.5.0 构建产物；1.5.1 的 2.2.3 适配代码需要重新构建后才能分发。
+安装需要一份与目标 NotchPeninsula 版本兼容的预编译 `NPS.AudioVisualizer.dll`。`releases/` 目录提供当前 1.5.1 的构建产物。
 
 1. 从本仓库 `releases/` 目录取得 `NPS.AudioVisualizer.dll`，或使用提供构建能力的远程开发平台自行生成。
 2. 将 DLL 放入 NotchPeninsula 主程序 exe 同级的 `plugins` 文件夹（例如 `C:\NotchPeninsula\plugins\`），或在宿主的 **设置 → 我的插件** 中导入 DLL。
@@ -44,21 +44,24 @@ NotchPeninsula 的系统音频频谱插件，在灵动岛组件和详情页中�
 | `src/UI/VisualizerDetailPage.cs` | 详情页频谱绘制、设置选项片 / 自动隐藏开关 / 重置交互 |
 | `src/UI/VisualizerSettingsPage.cs` | 插件设置中心的选项和实时预览 |
 | `NPS.AudioVisualizer.csproj` | 目标框架、宿主项目引用和编译依赖 |
-| `releases/NPS.AudioVisualizer.dll` | 1.5.0 预编译产物；1.5.1 源码尚待构建发布 |
+| `releases/NPS.AudioVisualizer.dll` | 1.5.1 预编译分发产物 |
+| `market.json` | 市场上传用的插件信息、最低宿主版本与 DLL 校验值 |
 | `AI_DEVELOPMENT.md` | 供 AI 开发工具接手时阅读的项目约定和远程构建说明 |
 
 ## 开发环境说明
 
 项目当前面向 `net10.0-windows10.0.19041.0`。项目文件位于仓库根目录，通过相对路径引用同级的 `NotchPeninsula` 宿主源码工程，因此单独检出本仓库并不能解析完整的编译引用。当前仓库没有包含 CI 构建工作流，预编译产物位于 `releases/` 目录；远程构建所需的目录布局、依赖和注意事项见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
 
-当前源码要求 **NotchPeninsula 正式版 2.2.3 或更高版本**（GitHub release [NotchPeninsula 2.2.3](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.2.3)，对应 tag `NPS-v2.2.3`）：详情页使用该版本新增的 `PluginTone` 逐元素文字明暗适配。`releases/` 中尚未更新的 1.5.0 DLL 仍以 2.1.0 为最低宿主版本。更新宿主兼容性前，请以对应 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
+本插件要求 **NotchPeninsula 正式版 2.2.3 或更高版本**（GitHub release [NotchPeninsula 2.2.3](https://github.com/GEORGEWWWU/NotchPeninsula/releases/tag/NPS-v2.2.3)，对应 tag `NPS-v2.2.3`）：详情页使用该版本新增的 `PluginTone` 逐元素文字明暗适配。更新宿主兼容性前，请以对应 tag 的宿主源码和插件 API 文档为准，不要默认 `main` 分支与已发布版本一致：
 
 - [NotchPeninsula 宿主仓库](https://github.com/GEORGEWWWU/NotchPeninsula)
 - [NPS-v2.2.3 的插件开发 API 文档](https://github.com/GEORGEWWWU/NotchPeninsula/blob/NPS-v2.2.3/NPS_PluginsAPI.md)
 
+`market.json` 沿用官方市场中已有的 `audio-visualizer` 条目 ID，记录上传 1.5.1 时应填写的 `minNpsVersion` 等信息及本地 DLL 校验值。它不会自动更新官方市场；上传 DLL 时需同步该版本门槛。
+
 ## 版本记录
 
-- **1.5.1（源码，待构建发布）**：详情页文字接入宿主 `PluginTone`，按所在区域背景明暗调整文字；绿色状态文字保留语义色。最低宿主版本提高到 2.2.3。
+- **1.5.1**：详情页文字接入宿主 `PluginTone`，按所在区域背景明暗调整文字；绿色状态文字保留语义色。最低宿主版本提高到 2.2.3。
 - **1.5.0**：适配 NotchPeninsula 正式版 2.1.0，将灵动岛频谱组件迁移到 `IAutoWidthWidget` / `WidgetKit` 布局协议；目标框架与 SkiaSharp、NAudio 版本保持不变。
 - **1.4.1**：修复静音频谱的视觉表现，静音时不再绘制底部圆点或最低高度柱体，统一保留低透明度细中心线；双声道静音时同样只保留中心线。新增无音频自动隐藏延迟选项，可选择 0、2、4、5、10 秒，选项位于原有开关与重置按钮之间；自动隐藏检测周期调整为 100ms，以支持立即隐藏和短延迟设置。
 - **1.4.0**：美化详情页设置区并新增无音频自动隐藏。设置区改为名称在左、候选项直接点击选中（无下拉框），四项设置两两一行；「无音频时自动隐藏」独占一行且与其他设置同宽，重置全部按钮固定在该行最右侧；面板高度 168→192。自动隐藏开启时静音约 1.5 秒后组件宽度归零、收回灵动岛占位，声音恢复即重新显示（基于 WASAPI 独立声音活动监测，监测不可用时保持显示）；新增重置全部，恢复柱形 / 标准 / 彩虹色 / ×1 / 关闭自动隐藏五项默认值；设置中心同步新增开关项。
