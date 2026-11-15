@@ -69,7 +69,7 @@ internal sealed class VisualizerDetailPage : IDetailPage
 
         // ---- 标题行 ----
         using (var title = new SKPaint { IsAntialias = true, TextSize = 13f, Typeface = PluginFont.ResolveBold(), Color = textColor })
-            canvas.DrawText("音频频谱", 20, 25, title);
+            PluginTone.DrawText(canvas, frame.Theme, "音频频谱", 20, 25, title);
         using (var status = new SKPaint
         {
             IsAntialias = true,
@@ -77,9 +77,14 @@ internal sealed class VisualizerDetailPage : IDetailPage
             Typeface = PluginFont.Resolve(),
             Color = st.IsLive ? SKColor.Parse("#22C55E").WithAlpha(a) : subColor,
         })
-            canvas.DrawText(st.IsLive ? "● 监听中" : "○ 无音频", 84, 25, status);
+        {
+            if (st.IsLive)
+                PluginTone.DrawAccentText(canvas, frame.Theme, "● 监听中", 84, 25, status);
+            else
+                PluginTone.DrawText(canvas, frame.Theme, "○ 无音频", 84, 25, status, sub: true);
+        }
         using (var close = new SKPaint { IsAntialias = true, TextSize = 14f, Typeface = PluginFont.Resolve(), Color = subColor, TextAlign = SKTextAlign.Center })
-            canvas.DrawText("×", CloseBtn.MidX, CloseBtn.MidY + 5f, close);
+            PluginTone.DrawText(canvas, frame.Theme, "×", CloseBtn.MidX, CloseBtn.MidY + 5f, close, sub: true);
 
         // ---- 频谱区（柱宽随粗细档位）----
         var (barW, gap) = BarMetrics.For(st.Thickness, detail: true);
@@ -110,7 +115,11 @@ internal sealed class VisualizerDetailPage : IDetailPage
         // 频段名（两种样式共用）
         using var label = new SKPaint { IsAntialias = true, TextSize = 10f, Typeface = PluginFont.Resolve(), Color = subColor, TextAlign = SKTextAlign.Center };
         for (int i = 0; i < VisualizerState.Bands; i++)
-            canvas.DrawText(BandNames[i], x0 + i * (barW + gap) + barW * 0.5f, SpecBottom + 14, label);
+        {
+            label.Color = subColor;
+            PluginTone.DrawText(canvas, frame.Theme, BandNames[i], x0 + i * (barW + gap) + barW * 0.5f,
+                SpecBottom + 14, label, sub: true);
+        }
 
         // ---- 设置区（名称在左、选项片在右，点击直接选中，写入注册表持久化）----
         _hits.Clear();
@@ -119,12 +128,12 @@ internal sealed class VisualizerDetailPage : IDetailPage
         using var chipText = new SKPaint { IsAntialias = true, TextSize = 9f, Typeface = PluginFont.Resolve(), TextAlign = SKTextAlign.Center };
 
         float colL = MarginX, colR = MarginX + ColW + ColGap;
-        DrawChoiceRow(canvas, colL, Row1Top, "样式", StyleOptions, st.Style, "style", a, theme, settingLabel, chipText);
-        DrawChoiceRow(canvas, colR, Row1Top, "粗细", ThicknessOptions, st.Thickness, "thickness", a, theme, settingLabel, chipText);
-        DrawChoiceRow(canvas, colL, Row2Top, "配色", ColorOptions, st.ColorMode, "color", a, theme, settingLabel, chipText);
-        DrawChoiceRow(canvas, colR, Row2Top, "灵敏", VisualizerState.GainNames, st.GainIndex, "gain", a, theme, settingLabel, chipText);
+        DrawChoiceRow(canvas, colL, Row1Top, "样式", StyleOptions, st.Style, "style", frame, settingLabel, chipText);
+        DrawChoiceRow(canvas, colR, Row1Top, "粗细", ThicknessOptions, st.Thickness, "thickness", frame, settingLabel, chipText);
+        DrawChoiceRow(canvas, colL, Row2Top, "配色", ColorOptions, st.ColorMode, "color", frame, settingLabel, chipText);
+        DrawChoiceRow(canvas, colR, Row2Top, "灵敏", VisualizerState.GainNames, st.GainIndex, "gain", frame, settingLabel, chipText);
 
-        DrawAutoRow(canvas, a, theme, settingLabel, chipText);
+        DrawAutoRow(canvas, frame, settingLabel, chipText);
 
         canvas.Restore();
     }
@@ -158,8 +167,9 @@ internal sealed class VisualizerDetailPage : IDetailPage
         // L / R 声道标记
         using (var tag = new SKPaint { IsAntialias = true, TextSize = 10f, Typeface = PluginFont.ResolveBold(), Color = subColor, TextAlign = SKTextAlign.Center })
         {
-            canvas.DrawText("L", x0 - 14 > 10 ? x0 - 14 : 14, SpecTop + 11, tag);
-            canvas.DrawText("R", x0 - 14 > 10 ? x0 - 14 : 14, SpecBottom, tag);
+            PluginTone.DrawText(canvas, frame.Theme, "L", x0 - 14 > 10 ? x0 - 14 : 14, SpecTop + 11, tag, sub: true);
+            tag.Color = subColor;
+            PluginTone.DrawText(canvas, frame.Theme, "R", x0 - 14 > 10 ? x0 - 14 : 14, SpecBottom, tag, sub: true);
         }
 
         if (!st.IsLive)
@@ -190,10 +200,11 @@ internal sealed class VisualizerDetailPage : IDetailPage
 
     /// <summary>一行设置：名称在左，选项片靠列右缘排开；点击选项片直接选中该值。</summary>
     private void DrawChoiceRow(SKCanvas canvas, float left, float top, string label, string[] options, int selected,
-        string key, byte a, SKColor theme, SKPaint labelPaint, SKPaint chipPaint)
+        string key, WidgetFrame frame, SKPaint labelPaint, SKPaint chipPaint)
     {
         float midY = top + RowH * 0.5f;
-        canvas.DrawText(label, left, midY + 3.4f, labelPaint);
+        labelPaint.Color = frame.Theme.TextColor.WithAlpha((byte)(frame.Alpha * 0.85f));
+        PluginTone.DrawText(canvas, frame.Theme, label, left, midY + 3.4f, labelPaint);
 
         // 选项片总宽（含间距），从列右缘往左排 —— 候选值直接点击，不用下拉框
         float total = (options.Length - 1) * ChipGap;
@@ -205,7 +216,7 @@ internal sealed class VisualizerDetailPage : IDetailPage
         {
             float w = chipPaint.MeasureText(options[i]) + ChipPadX * 2f;
             var r = new SKRect(x, midY - ChipH * 0.5f, x + w, midY + ChipH * 0.5f);
-            DrawChip(canvas, r, options[i], i == selected, a, theme, chipPaint);
+            DrawChip(canvas, r, options[i], i == selected, frame, chipPaint);
 
             // 命中区上下各扩 1，提高小控件的易点性（与相邻行仍留空隙）
             _hits.Add((new SKRect(r.Left, r.Top - 1f, r.Right, r.Bottom + 1f), $"{key}:{i}"));
@@ -214,12 +225,14 @@ internal sealed class VisualizerDetailPage : IDetailPage
     }
 
     /// <summary>末行：自动隐藏设置占左列（与其他设置同宽，开关靠列右缘），「重置全部」固定在整行最右侧。</summary>
-    private void DrawAutoRow(SKCanvas canvas, byte a, SKColor theme, SKPaint labelPaint, SKPaint chipPaint)
+    private void DrawAutoRow(SKCanvas canvas, WidgetFrame frame, SKPaint labelPaint, SKPaint chipPaint)
     {
         var st = _plugin.State;
         float midY = AutoTop + AutoH * 0.5f;
+        byte a = frame.Alpha;
+        SKColor theme = frame.Theme.TextColor;
 
-        canvas.DrawText("无音频时自动隐藏", MarginX, midY + 3.4f, labelPaint);
+        PluginTone.DrawText(canvas, frame.Theme, "无音频时自动隐藏", MarginX, midY + 3.4f, labelPaint);
 
         var sw = new SKRect(MarginX + 137f, midY - 6f, MarginX + 159f, midY + 6f);
         DrawSwitch(canvas, sw, st.AutoHideWhenSilent, a, theme);
@@ -238,7 +251,7 @@ internal sealed class VisualizerDetailPage : IDetailPage
             string text = VisualizerState.AutoHideDelayOptions[i].ToString();
             float w = delayPaint.MeasureText(text) + 5f;
             var r = new SKRect(x, midY - AutoDelayChipH * 0.5f, x + w, midY + AutoDelayChipH * 0.5f);
-            DrawChip(canvas, r, text, VisualizerState.AutoHideDelayOptions[i] == st.AutoHideDelaySec, a, theme, delayPaint);
+            DrawChip(canvas, r, text, VisualizerState.AutoHideDelayOptions[i] == st.AutoHideDelaySec, frame, delayPaint);
             _hits.Add((new SKRect(r.Left, r.Top - 1f, r.Right, r.Bottom + 1f), $"autoHideDelay:{i}"));
             x += w + AutoDelayGap;
         }
@@ -250,17 +263,19 @@ internal sealed class VisualizerDetailPage : IDetailPage
             Typeface = PluginFont.Resolve(),
             Color = theme.WithAlpha((byte)(a * 0.60f)),
         };
-        canvas.DrawText("秒", x + 1f, midY + 3.2f, unitPaint);
+        PluginTone.DrawText(canvas, frame.Theme, "秒", x + 1f, midY + 3.2f, unitPaint, sub: true);
 
         float resetW = chipPaint.MeasureText("重置全部") + 12f;
         var reset = new SKRect(LW - MarginX - resetW, midY - 8f, LW - MarginX, midY + 8f);
-        DrawChip(canvas, reset, "重置全部", selected: false, a, theme, chipPaint);
+        DrawChip(canvas, reset, "重置全部", selected: false, frame, chipPaint);
         _hits.Add((reset, "reset"));
     }
 
     /// <summary>选项片：细边框圆角小块；选中项只用更亮的底色强调，与其他控件同色系（不引入彩色）。</summary>
-    private static void DrawChip(SKCanvas canvas, SKRect r, string text, bool selected, byte a, SKColor theme, SKPaint tp)
+    private static void DrawChip(SKCanvas canvas, SKRect r, string text, bool selected, WidgetFrame frame, SKPaint tp)
     {
+        byte a = frame.Alpha;
+        SKColor theme = frame.Theme.TextColor;
         var rr = new SKRoundRect(r, 4f);
         using (var bg = new SKPaint { IsAntialias = true, Color = theme.WithAlpha((byte)(a * (selected ? 0.22f : 0.08f))) })
             canvas.DrawRoundRect(rr, bg);
@@ -268,7 +283,7 @@ internal sealed class VisualizerDetailPage : IDetailPage
             canvas.DrawRoundRect(rr, bd);
 
         tp.Color = theme.WithAlpha((byte)(a * (selected ? 0.95f : 0.60f)));
-        canvas.DrawText(text, r.MidX, r.MidY + 3.2f, tp);
+        PluginTone.DrawText(canvas, frame.Theme, text, r.MidX, r.MidY + 3.2f, tp, sub: !selected);
     }
 
     /// <summary>开关：开启时绿色轨道 + 右侧白点，关闭时中性灰轨道 + 左侧灰点。</summary>
